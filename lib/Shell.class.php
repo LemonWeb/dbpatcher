@@ -56,7 +56,7 @@ class Shell
 
                 if ($char === "\n") {
                     break;
-                } else if (ord($char) === 127) {
+                } elseif (ord($char) === 127) {
                     if (strlen($password) > 0) {
                         fwrite(STDOUT, "\x08 \x08");
                         $password = substr($password, 0, -1);

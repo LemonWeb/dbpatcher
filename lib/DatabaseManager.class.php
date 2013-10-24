@@ -286,6 +286,8 @@ class DatabaseManager
         // make a list of all available patches
         $all_patches = $this->findSQLFilesForPeriod(25300, time(), true);
 
+        $files = array();
+
         if (!$this->patches_table_exists) {
             // old school: select the patches whose timestamps lie between the previous and current deployment timestamps
             if ($action == 'update') {
@@ -532,7 +534,7 @@ class DatabaseManager
             $this->query("CREATE TABLE `temp_{$this->current_timestamp}` (`field1` INT NULL); DROP TABLE `temp_{$this->current_timestamp}`;", $output, $return, $database_name, $username, $password);
 
             if ($return != 0) {
-                return $this->getDatabaseLogin();
+                $this->getDatabaseLogin();
             }
 
             $this->logger->log('Database check passed');
