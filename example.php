@@ -1,5 +1,6 @@
 <?php
 
+// if you're letting Composer (or something else) do the autoloading, these can be skipped of course.
 require_once 'lib/base/BaseDeploy.class.php';
 require_once 'lib/Deploy.class.php';
 require_once 'lib/exceptions/DeployException.class.php';
@@ -17,8 +18,9 @@ $deploy = new Deploy(array(
 	),
 	'database_dirs' => array('data/sql-updates'),
 	'database_host' => 'localhost',
+	'database_port' => 3306,
 	'database_name' => 'database',
-	'database_user' => 'root', // if you can omit these you will be asked for them if they are needed
+	'database_user' => 'root', // if you omit these you will be asked for them if they are needed
 	'database_pass' => 'p@ssw0rd',
 	'target' => 'prod',
 	'database_patcher'	=> 'lib/deployer/database-patcher.php',

@@ -68,6 +68,13 @@ class DatabaseManager
     protected $database_host = null;
 
     /**
+     * The port to use on the database host
+     *
+     * @var string
+     */
+    protected $database_port = null;
+
+    /**
      * De naam van de database waar de SQL updates naartoe gaan
      *
      * @var string
@@ -179,14 +186,16 @@ class DatabaseManager
         $this->database_dirs = $dirs;
     }
 
-    /**
-     * Initialization
-     *
-     * @param string $host
-     */
-    public function setHost($host)
+	/**
+	 * Initialization
+	 *
+	 * @param string $host
+	 * @param int $port
+	 */
+    public function setHost($host, $port = null)
     {
         $this->database_host = $host;
+        $this->database_port = $port !== null ? $port : 3306;
     }
 
     /**
@@ -519,7 +528,7 @@ class DatabaseManager
             $return = 0;
             $output = array();
 
-            // controleren of deze gebruiker een tabel mag aanmaken (rudimentaire toegangstest)
+            // Simple access test (check if this user can create and drop a table)
             $this->query("CREATE TABLE `temp_{$this->current_timestamp}` (`field1` INT NULL); DROP TABLE `temp_{$this->current_timestamp}`;", $output, $return, $database_name, $username, $password);
 
             if ($return != 0) {
@@ -608,7 +617,7 @@ class DatabaseManager
 
         $this->remote_shell->sshExec(
             $this->control_host,
-            "mysql -h{$this->database_host} -u$username -p$password -e $command $database_name",
+            "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password -e $command $database_name",
             $output, $return, '/ -p[^ ]+ /', ' -p***** '
         );
 

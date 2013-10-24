@@ -286,7 +286,10 @@ class BaseDeploy
         $this->database_manager->setHost(
             isset($options['database_host'])
                 ? $options['database_host']
-                : (is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host)
+                : (is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host),
+            isset($options['database_port'])
+                ? $options['database_port']
+                : null
         );
 
         if (isset($options['database_name'])) {
