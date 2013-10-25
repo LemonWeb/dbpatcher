@@ -1,35 +1,38 @@
 <?php
 
-// not namespaced for BC
+namespace Bugbyte\Deployer;
 
 use Bugbyte\Deployer\Exceptions\DeployException;
-use Bugbyte\Deployer\Shell\Shell;
+use Bugbyte\Deployer\Interfaces\LocalShellInterface;
+use Bugbyte\Deployer\Interfaces\LoggerInterface;
+use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
+use Bugbyte\Deployer\Shell\LocalShell;
 use Bugbyte\Deployer\Shell\RemoteShell;
-use Bugbyte\Deployer\Database\DatabaseManager;
+use Bugbyte\Deployer\Database\Manager;
 use Bugbyte\Deployer\Logger\Logger;
 
 /**
  * The deployer
  */
-class BaseDeploy
+class Deploy
 {
     /**
-     * @var Bugbyte\Deployer\Logger\Logger
+     * @var LoggerInterface
      */
     protected $logger = null;
 
     /**
-     * @var Bugbyte\Deployer\Shell\Shell
+     * @var LocalShellInterface
      */
     protected $local_shell = null;
 
     /**
-     * @var Bugbyte\Deployer\Shell\RemoteShell
+     * @var RemoteShellInterface
      */
     protected $remote_shell = null;
 
     /**
-     * @var Bugbyte\Deployer\Database\DatabaseManager
+     * @var Manager
      */
     protected $database_manager = null;
 
@@ -261,13 +264,13 @@ class BaseDeploy
         $this->logger = new Logger(isset($options['logfile']) ? $options['logfile'] : null, false);
 
         // initialize local shell
-        $this->local_shell = new Shell();
+        $this->local_shell = new LocalShell();
 
         // initialize remote shell
         $this->remote_shell = new RemoteShell($this->logger, $this->remote_user, isset($options['ssh_path']) ? $options['ssh_path'] : trim(`which ssh`));
 
         // initialize database manager
-        $this->database_manager = new DatabaseManager(
+        $this->database_manager = new Manager(
             $this->logger,
             $this->local_shell,
             $this->remote_shell,
@@ -346,7 +349,7 @@ class BaseDeploy
 			$this->apc_deploy_setrev_url = $options['apc_deploy_setrev_url'];
 		}
 
-		$this->rsync_path		= isset($options['rsync_path']) ? $options['rsync_path'] : trim(`which rsync`);
+		$this->rsync_path = isset($options['rsync_path']) ? $options['rsync_path'] : trim(`which rsync`);
 
 		if (!$this->auto_init)
 			return;
@@ -366,8 +369,8 @@ class BaseDeploy
 
 		$this->timestamp = time();
 		$this->remote_target_dir = strtr($this->remote_dir_format, array(
-		                                '%project_name%' => $this->project_name,
-		                                '%timestamp%' => date($this->remote_dir_timestamp_format, $this->timestamp)
+                                                    '%project_name%' => $this->project_name,
+                                                    '%timestamp%' => date($this->remote_dir_timestamp_format, $this->timestamp)
 		));
 
 		list($this->previous_timestamp, $this->last_timestamp) = $this->findPastDeploymentTimestamps($remote_host, $this->remote_dir);
@@ -381,8 +384,8 @@ class BaseDeploy
 
 		if ($this->last_timestamp) {
 			$this->last_remote_target_dir = strtr($this->remote_dir_format, array(
-			                                    '%project_name%' => $this->project_name,
-			                                    '%timestamp%' => date($this->remote_dir_timestamp_format, $this->last_timestamp)
+                                                    '%project_name%' => $this->project_name,
+                                                    '%timestamp%' => date($this->remote_dir_timestamp_format, $this->last_timestamp)
 			));
 		}
 
@@ -608,7 +611,7 @@ class BaseDeploy
 		$output = array();
 		$return = null;
 
-		$this->remote_shell->sshExec($remote_host,
+		$this->remote_shell->exec($remote_host,
 			"cd $remote_dir/$target_dir; ".
 				"cat {$this->apc_deploy_version_template} | sed 's/#deployment_timestamp#/{$this->timestamp}/' > {$this->apc_deploy_version_path}.tmp; ".
 				"mv {$this->apc_deploy_version_path}.tmp {$this->apc_deploy_version_path}; ".
@@ -681,7 +684,7 @@ class BaseDeploy
 
         $output = array();
         $return = null;
-        $this->remote_shell->sshExec($remote_host, $cmd, $output, $return);
+        $this->remote_shell->exec($remote_host, $cmd, $output, $return);
 
         $this->logger->log($output);
 	}
@@ -714,7 +717,7 @@ class BaseDeploy
         $output = array();
         $return = null;
 
-        $this->remote_shell->sshExec($remote_host, $cmd, $output, $return);
+        $this->remote_shell->exec($remote_host, $cmd, $output, $return);
 	}
 
 	/**
@@ -726,7 +729,7 @@ class BaseDeploy
 
 		$output = array();
 		$return = null;
-		$this->remote_shell->sshExec($remote_host, 'cd '. $remote_dir .'; rm -rf '. $target_dir, $output, $return);
+		$this->remote_shell->exec($remote_host, 'cd '. $remote_dir .'; rm -rf '. $target_dir, $output, $return);
 	}
 
 	/**
@@ -738,7 +741,7 @@ class BaseDeploy
 
 		$output = array();
 		$return = null;
-		$this->remote_shell->sshExec($remote_host, "cd $remote_dir; rm production; ln -s {$target_dir} production", $output, $return);
+		$this->remote_shell->exec($remote_host, "cd $remote_dir; rm production; ln -s {$target_dir} production", $output, $return);
 	}
 
 	/**
@@ -757,7 +760,7 @@ class BaseDeploy
 
 			$output = array();
 			$return = null;
-			$this->remote_shell->sshExec($remote_host, "cd {$remote_dir}/{$this->remote_target_dir}; $target_files_to_move", $output, $return);
+			$this->remote_shell->exec($remote_host, "cd {$remote_dir}/{$this->remote_target_dir}; $target_files_to_move", $output, $return);
 		}
 	}
 
@@ -886,7 +889,7 @@ class BaseDeploy
 
 		$output = array();
 		$return = null;
-		$this->remote_shell->sshExec($remote_host, "mkdir -p $remote_dir", $output, $return, '', '', LOG_DEBUG);
+		$this->remote_shell->exec($remote_host, "mkdir -p $remote_dir", $output, $return, '', '', LOG_DEBUG);
 
 		if (!empty($this->data_dirs))
 		{
@@ -896,7 +899,7 @@ class BaseDeploy
 
 			$output = array();
 			$return = null;
-			$this->remote_shell->sshExec($remote_host, $cmd, $output, $return, '', '', LOG_DEBUG);
+			$this->remote_shell->exec($remote_host, $cmd, $output, $return, '', '', LOG_DEBUG);
 		}
 	}
 
@@ -919,7 +922,7 @@ class BaseDeploy
 
 		$dirs = array();
 		$return = null;
-		$this->remote_shell->sshExec($remote_host, "ls -1 $remote_dir", $dirs, $return, '', '', LOG_DEBUG);
+		$this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return, '', '', LOG_DEBUG);
 
 		if ($return !== 0) {
 			throw new DeployException('ssh initialize failed');
@@ -975,7 +978,7 @@ class BaseDeploy
 
 		$dirs = array();
 		$return = null;
-		$this->remote_shell->sshExec($remote_host, "ls -1 $remote_dir", $dirs, $return);
+		$this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return);
 
 		if ($return !== 0) {
 			throw new DeployException('ssh initialize failed');
@@ -1060,37 +1063,6 @@ class BaseDeploy
 			$this->rollbackFiles($past_deployment['remote_host'], $past_deployment['remote_dir'], implode(' ', $past_deployment['dirs']));
 		}
 	}
-
-    /**
-     * For BC
-     * @see RemoteShell::sshExec()
-     */
-    protected function sshExec($remote_host, $command, &$output, &$return, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_INFO)
-    {
-        $this->remote_shell->sshExec($remote_host, $command, $output, $return, $hide_pattern, $hide_replacement, $ouput_loglevel);
-    }
-
-    /**
-     * For BC
-     * @see DatabaseManager::sendToDatabase()
-     */
-    protected function sendToDatabase($remote_host, $database_host, $command, &$output, &$return, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_INFO)
-    {
-        $this->database_manager->sendToDatabase($command, $output, $return, $hide_pattern, $hide_replacement, $ouput_loglevel);
-    }
-
-    /**
-     * For BC
-     * @see Logger::log()
-     *
-     * @param $message
-     * @param int $level
-     * @param bool $extra_newline
-     */
-    protected function log($message, $level = LOG_INFO, $extra_newline = false)
-    {
-        $this->logger->log($message, $level, $extra_newline);
-    }
 
 	/**
 	 * Wrapper for rsync command's

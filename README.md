@@ -1,18 +1,16 @@
-A story about this tool is posted at [Bugbyte Techlab](http://techlab.bugbyte.nl/frameworks/automated-deployment).
-
 INSTALLATION
 
 The easiest way is to use Composer:
 
     {
         "require": {
-            "bugbyte/deployer": "1.0.*"
+            "bugbyte/deployer": "dev-databasemanager"
         }
     }
 
 USAGE
 
-See [example.php](https://github.com/bugbyte/deployer/blob/master/example.php) for a simple setup.
+See [example.php](https://github.com/bjdelange/deployer/blob/master/example.php) for a simple setup.
 
 TODO
 

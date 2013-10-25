@@ -1,9 +1,7 @@
 <?php
 
-// if you're letting Composer (or something else) do the autoloading, these can be skipped of course.
-require_once 'lib/base/BaseDeploy.class.php';
-require_once 'lib/Deploy.class.php';
-require_once 'lib/exceptions/DeployException.class.php';
+use Bugbyte\Deployer\Deploy;
+
 
 $deploy = new Deploy(array(
 	'project_name' => 'project',
@@ -45,5 +43,5 @@ switch($_SERVER['argv'][1])
 		$deploy->cleanup();
 		break;
 	default:
-		echo 'Usage: php deploy.php [deploy|rollback|cleanup]'. PHP_EOL;
+		echo 'Usage: php example.php [deploy|rollback|cleanup]'. PHP_EOL;
 }

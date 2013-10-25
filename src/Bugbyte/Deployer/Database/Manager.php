@@ -4,24 +4,26 @@ namespace Bugbyte\Deployer\Database;
 
 use Bugbyte\Deployer\Exceptions\DeployException;
 use Bugbyte\Deployer\Exceptions\DatabaseException;
-use Bugbyte\Deployer\Shell\Shell;
-use Bugbyte\Deployer\Shell\RemoteShell;
-use Bugbyte\Deployer\Logger\Logger;
+use Bugbyte\Deployer\Interfaces\LocalShellInterface;
+use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
+use Bugbyte\Deployer\Interfaces\SQL_update;
+use Bugbyte\Deployer\Interfaces\LoggerInterface;
 
-class DatabaseManager
+
+class Manager
 {
     /**
-     * @var Logger
+     * @var LoggerInterface
      */
     protected $logger = null;
 
     /**
-     * @var Shell
+     * @var LocalShellInterface
      */
     protected $local_shell = null;
 
     /**
-     * @var RemoteShell
+     * @var RemoteShellInterface
      */
     protected $remote_shell = null;
 
@@ -135,20 +137,20 @@ class DatabaseManager
     /**
      * A list of the patches to apply (used for both update and rollback)
      *
-     * @var \SQL_update[]       With their full relative paths as keys
+     * @var SQL_update[]       With their full relative paths as keys
      */
     protected $patches_to_apply = array();
 
     /**
      * Initialization
      *
-     * @param \Bugbyte\Deployer\Logger\Logger $logger
-     * @param \Bugbyte\Deployer\Shell\Shell $local_shell
-     * @param \Bugbyte\Deployer\Shell\RemoteShell $remote_shell
+     * @param LoggerInterface $logger
+     * @param LocalShellInterface $local_shell
+     * @param RemoteShellInterface $remote_shell
      * @param string $basedir
      * @param string $control_host
      */
-    public function __construct(Logger $logger, Shell $local_shell, RemoteShell $remote_shell, $basedir, $control_host)
+    public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, $basedir, $control_host)
     {
         $this->logger = $logger;
         $this->local_shell = $local_shell;
@@ -555,7 +557,7 @@ class DatabaseManager
      * @param string $database_name
      * @param string $username
      * @param string $password
-     * @throws \Bugbyte\Deployer\Exceptions\DatabaseException
+     * @throws DatabaseException
      */
     public function sendToDatabase($command, &$output = array(), &$return = 0, $database_name = null, $username = null, $password = null)
     {
@@ -575,7 +577,7 @@ class DatabaseManager
             $password = $this->database_pass;
         }
 
-        $this->remote_shell->sshExec(
+        $this->remote_shell->exec(
             $this->control_host,
             "$command | mysql -h{$this->database_host} -u$username -p$password $database_name", $output, $return, '/ -p[^ ]+ /', ' -p***** '
         );
@@ -594,7 +596,7 @@ class DatabaseManager
      * @param string $database_name
      * @param string $username
      * @param string $password
-     * @throws \Bugbyte\Deployer\Exceptions\DatabaseException
+     * @throws DatabaseException
      */
     public function query($command, &$output = array(), &$return = 0, $database_name = null, $username = null, $password = null)
     {
@@ -617,7 +619,7 @@ class DatabaseManager
         $command = str_replace(array(/*'(', ')',*/ '`'), array(/*'\(', '\)',*/ '\`'), $command);
         $command = escapeshellarg($command);
 
-        $this->remote_shell->sshExec(
+        $this->remote_shell->exec(
             $this->control_host,
             "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password -e $command $database_name",
             $output, $return, '/ -p[^ ]+ /', ' -p***** '

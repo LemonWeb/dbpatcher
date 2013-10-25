@@ -2,7 +2,9 @@
 
 namespace Bugbyte\Deployer\Logger;
 
-class Logger
+use Bugbyte\Deployer\Interfaces\LoggerInterface as LoggerInterface;
+
+class Logger implements LoggerInterface
 {
     /**
      * If the deployer is run in debugging mode (more verbose output)

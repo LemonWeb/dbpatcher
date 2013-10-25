@@ -2,7 +2,10 @@
 
 namespace Bugbyte\Deployer\Shell;
 
-class Shell
+use Bugbyte\Deployer\Interfaces\LocalShellInterface;
+
+
+class LocalShell implements LocalShellInterface
 {
     /**
      * Asks the user for input
@@ -19,7 +22,7 @@ class Shell
         if (!$isPassword) {
             $input = trim(fgets(STDIN));
         } else {
-            $input = self::getPassword(false);
+            $input = $this->getPassword(false);
             echo PHP_EOL;
         }
 
@@ -39,7 +42,7 @@ class Shell
      * @param  boolean $stars Wether or not to output stars for given characters
      * @return string
      */
-    static protected function getPassword($stars = false)
+    protected function getPassword($stars = false)
     {
         // Get current style
         $oldStyle = shell_exec('stty -g');

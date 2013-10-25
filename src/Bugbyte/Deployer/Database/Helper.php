@@ -3,6 +3,8 @@
 namespace Bugbyte\Deployer\Database;
 
 use Bugbyte\Deployer\Exceptions\DeployException;
+use Bugbyte\Deployer\Interfaces\SQL_update;
+
 
 class Helper
 {
@@ -32,7 +34,7 @@ class Helper
      * @param string $path_prefix
      * @param array $filepaths
      * @throws DeployException
-     * @return \SQL_update[]				[filepath => sql_update_object, ...]
+     * @return SQL_update[]				[filepath => sql_update_object, ...]
      */
     public static function checkFiles($path_prefix, $filepaths)
     {
@@ -56,8 +58,8 @@ class Helper
 
             $sql_patch = new $classname();
 
-            if (!$sql_patch instanceof \SQL_update) {
-                throw new DeployException("Class $classname doesn't implement SQL_update");
+            if (!$sql_patch instanceof SQL_update) {
+                throw new DeployException("Class $classname doesn't implement the SQL_update interface");
             }
 
             $up_sql = trim($sql_patch->up());

@@ -2,12 +2,14 @@
 
 namespace Bugbyte\Deployer\Shell;
 
-use Bugbyte\Deployer\Logger\Logger;
+use Bugbyte\Deployer\Interfaces\LoggerInterface;
+use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
 
-class RemoteShell
+
+class RemoteShell implements RemoteShellInterface
 {
     /**
-     * @var Logger
+     * @var LoggerInterface
      */
     protected $logger = null;
 
@@ -26,11 +28,11 @@ class RemoteShell
     /**
      * Initialize
      *
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      * @param string $remote_user
      * @param string $ssh_path
      */
-    public function __construct(Logger $logger, $remote_user, $ssh_path)
+    public function __construct(LoggerInterface $logger, $remote_user, $ssh_path)
     {
         $this->logger = $logger;
         $this->remote_user = $remote_user;
@@ -48,7 +50,7 @@ class RemoteShell
      * @param string $hide_replacement
      * @param int $ouput_loglevel
      */
-    public function sshExec($remote_host, $command, &$output = array(), &$return = 0, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_INFO)
+    public function exec($remote_host, $command, &$output = array(), &$return = 0, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_INFO)
     {
         $cmd = $this->ssh_path .' '. $this->remote_user .'@'. $remote_host .' "'. str_replace('"', '\"', $command) .'"';
 
