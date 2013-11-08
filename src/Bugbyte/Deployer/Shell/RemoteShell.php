@@ -60,11 +60,13 @@ class RemoteShell implements RemoteShellInterface
             $show_cmd = $cmd;
         }
 
-        $this->logger->log('sshExec: '. $show_cmd, $ouput_loglevel);
+        $this->logger->log('Remote: '. $show_cmd, $ouput_loglevel);
 
         exec($cmd, $output, $return);
 
         // remove some garbage returned on the first line
         array_shift($output);
+
+        $this->logger->log(implode(PHP_EOL, $output), $ouput_loglevel);
     }
 }

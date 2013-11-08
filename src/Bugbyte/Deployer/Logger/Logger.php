@@ -7,14 +7,14 @@ use Bugbyte\Deployer\Interfaces\LoggerInterface as LoggerInterface;
 class Logger implements LoggerInterface
 {
     /**
-     * If the deployer is run in debugging mode (more verbose output)
+     * If the deployer is run in debugging mode (more verbose output).
      *
      * @var bool
      */
     protected $debug = false;
 
     /**
-     * Het pad van de logfile, als logging gewenst is
+     * The path of the logfile, if logging is required.
      *
      * @var string
      */
@@ -43,9 +43,9 @@ class Logger implements LoggerInterface
      * Output wrapper
      *
      * @param string $message
-     * @param integer $level		  LOG_INFO (6)  = normal (always show),
-     *								LOG_DEBUG (7) = debugging (hidden by default)
-     * @param bool $extra_newline	 Automatisch een newline aan het eind toevoegen
+     * @param integer $level		 LOG_INFO (6)  = normal (always show),
+     *								 LOG_DEBUG (7) = debugging (hidden by default)
+     * @param bool $extra_newline	 Automatically add a newline at the end
      */
     public function log($message, $level = LOG_INFO, $extra_newline = false)
     {
@@ -78,10 +78,10 @@ class Logger implements LoggerInterface
      */
     public function setQuiet($quiet)
     {
-        $return = $this->quiet;
+        $current_setting = $this->quiet;
 
         $this->quiet = $quiet;
 
-        return $return;
+        return $current_setting;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+require __DIR__ .'/vendor/autoload.php';
+
 use Bugbyte\Deployer\Deploy;
 
 
@@ -14,6 +16,9 @@ $deploy = new Deploy(array(
 		'web/.htaccess',
 		'config/database.php'
 	),
+    'data_dirs' => array(
+        'web/uploads',
+    ),
 	'database_dirs' => array('data/sql-updates'),
 	'database_host' => 'localhost',
 	'database_port' => 3306,
@@ -21,8 +26,8 @@ $deploy = new Deploy(array(
 	'database_user' => 'root', // if you omit these you will be asked for them if they are needed
 	'database_pass' => 'p@ssw0rd',
 	'target' => 'prod',
-	'database_patcher'	=> 'lib/deployer/database-patcher.php',
-	'datadir_patcher'	=> 'lib/deployer/datadir-patcher.php',
+	'database_patcher' => 'vendor/bugbyte/deployer/bin/database-patcher.php',
+	'datadir_patcher' => 'vendor/bugbyte/deployer/bin/datadir-patcher.php',
 
     // APC cache handling
     // EXPERIMENTAL: it works, but only for one user per server. Only use it yet unless you own the box.

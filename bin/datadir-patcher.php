@@ -1,18 +1,18 @@
 <?php
 
 use Bugbyte\Deployer\Exceptions\DeployException;
+use Bugbyte\Deployer\Patchers\Helper;
 
-require __DIR__ . '/../includes/patcher_functions.php';
-require __DIR__ .'/../src/Bugbyte/Deployer/Exceptions/DeployException.php';
+require __DIR__ .'/../../../autoload.php';
 
 
 if ($_SERVER['argc'] <= 2) {
 	throw new DeployException('Which directories ?');
 }
 
-$path = findRootPath($_SERVER['argv'][0], __FILE__);
+$path = Helper::findRootPath($_SERVER['argv'][0], __FILE__);
 
-$args = parseArgs($_SERVER['argv']);
+$args = Helper::parseArgs($_SERVER['argv']);
 
 $datadir_prefix = $args['datadir-prefix'];
 $previous_dir = $args['previous-dir'];

@@ -1,12 +1,12 @@
 <?php
 
 use Bugbyte\Deployer\Exceptions\DeployException;
+use Bugbyte\Deployer\Patchers\Helper;
 
-require dirname(__FILE__) . '/../includes/patcher_functions.php';
-require dirname(__FILE__) .'/../src/Bugbyte/Deployer/Exceptions/DeployException.php';
+require __DIR__ .'/../../../autoload.php';
 
 
-$args = parseArgs($_SERVER['argv']);
+$args = Helper::parseArgs($_SERVER['argv']);
 
 if (!isset($args['ip'])) {
     throw new DeployException('Gearman server ip not specified');

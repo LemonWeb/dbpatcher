@@ -17,9 +17,20 @@ use Bugbyte\Deployer\Logger\Logger;
 class Deploy
 {
     /**
+     * The two states of deployment: update & rollback.
+     */
+    const UPDATE = 'update';
+    const ROLLBACK = 'rollback';
+
+    /**
      * @var LoggerInterface
      */
     protected $logger = null;
+
+    /**
+     * @var bool
+     */
+    protected $debug = false;
 
     /**
      * @var LocalShellInterface
@@ -122,89 +133,90 @@ class Deploy
 	protected $last_timestamp = null;
 
 	/**
-	 * De directory van de voorlaatste deployment
+	 * The directory of the previous deployment
 	 *
 	 * @var string
 	 */
 	protected $previous_remote_target_dir = null;
 
 	/**
-	 * De directory van de laatste deployment
+	 * The directory of the latest deployment
 	 *
 	 * @var string
 	 */
 	protected $last_remote_target_dir = null;
 
 	/**
-	 * Doellocatie (stage of prod)
+	 * Target environment (stage, prod, etc.)
 	 *
 	 * @var string
 	 */
 	protected $target = null;
 
 	/**
-	 * Het pad van de datadir symlinker, relatief vanaf de project root
+	 * The path of datadir-patcher.php relative to the project root
 	 *
 	 * @var string
 	 */
 	protected $datadir_patcher = null;
 
 	/**
-	 * Het pad van de gearman restarter, relatief vanaf de project root
+	 * The path of gearman-restarter.php relative to the project root
 	 *
 	 * @var string
 	 */
 	protected $gearman_restarter = null;
 
 	/**
-	 * Directories waarin de site zelf dingen kan schrijven
+	 * Directories containing User Generated Content
 	 *
 	 * @var array
 	 */
 	protected $data_dirs = null;
 
 	/**
-	 * De naam van de directory waarin alle data_dirs worden geplaatst
+	 * The name of the directory that will contain all data_dirs
 	 *
 	 * @var string
 	 */
 	protected $data_dir_prefix = 'data';
 
 	/**
-	 * deployment timestamps ophalen als deploy geïnstantieerd wordt
+	 * Retrieve past deployment timestamps at instantiation
 	 *
 	 * @var boolean
 	 */
 	protected $auto_init = true;
 
 	/**
-	 * Files die specifiek zijn per omgeving
+	 * Files to be renamed depending on the target environment.
 	 *
-	 * voorbeeld:
+	 * Example:
 	 * 		'config/databases.yml'
 	 *
-	 * bij publicatie naar stage gebeurd dit:
-	 * 		'config/databases.stage.yml' => 'config/databases.yml'
+	 * On deployment to stage the stage-specific file is renamed:
+	 * 		config/databases.stage.yml -> config/databases.yml
 	 *
-	 * bij publicatie naar prod gebeurd dit:
-	 * 		'config/databases.prod.yml' => 'config/databases.yml'
+	 * On deployment to prod:
+	 * 		config/databases.prod.yml => config/databases.yml
 	 *
+     * The files-to-be-renamed will be checked for existence before deployment continues.
+     *
 	 * @var array
 	 */
 	protected $target_specific_files = array();
 
 	/**
-	 * settings van gearman inclusief worker functies die herstart moeten worden
-	 * na deployment
+	 * Settings of Gearman including the names of the worker functions that must be restarted.
 	 *
-	 * voorbeeld:
+	 * Example:
 	 * 		array(
 	 *			'servers' => array(
-	 *				array('ip' => ipadres, 'port' => gearmanport)
+	 *				array('ip' => 'ip address', 'port' => port number)
 	 * 			),
 	 * 			'workers' => array(
-	 *				'functienaam1',
-	 *				'functienaam2',
+	 *				'worker1',
+	 *				'worker2'
 	 * 			)
 	 * 		)
 	 *
@@ -246,28 +258,33 @@ class Deploy
 	protected $rsync_path = 'rsync';
 
 	/**
-	 * Bouwt een nieuwe Deploy class op met de gegeven opties
+	 * Initializes the deployment system.
 	 *
 	 * @param array $options
 	 * @throws DeployException
 	 */
 	public function __construct(array $options)
 	{
-		$this->project_name				= $options['project_name'];
-		$this->basedir					= $options['basedir'];
-		$this->remote_host				= $options['remote_host'];
-		$this->remote_user				= $options['remote_user'];
-        $this->target					= $options['target'];
-        $this->remote_dir				= $options['remote_dir'] .'/'. $this->target;
+		$this->project_name	= $options['project_name'];
+		$this->basedir		= $options['basedir'];
+		$this->remote_host	= $options['remote_host'];
+		$this->remote_user	= $options['remote_user'];
+        $this->target		= $options['target'];
+        $this->remote_dir	= $options['remote_dir'] .'/'. $this->target;
+        $this->debug        = isset($options['debug']) ? $options['debug'] : false;
+
+        $logfile = isset($options['logfile']) ? $options['logfile'] : null;
 
         // initialize logger
-        $this->logger = new Logger(isset($options['logfile']) ? $options['logfile'] : null, false);
+        $this->logger = new Logger($logfile, $this->debug);
 
         // initialize local shell
         $this->local_shell = new LocalShell();
 
         // initialize remote shell
-        $this->remote_shell = new RemoteShell($this->logger, $this->remote_user, isset($options['ssh_path']) ? $options['ssh_path'] : trim(`which ssh`));
+        $ssh_path = isset($options['ssh_path']) ? $options['ssh_path'] : trim(`which ssh`);
+
+        $this->remote_shell = new RemoteShell($this->logger, $this->remote_user, $ssh_path);
 
         // initialize database manager
         $this->database_manager = new Manager(
@@ -275,7 +292,9 @@ class Deploy
             $this->local_shell,
             $this->remote_shell,
             $this->basedir,
-            is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host);
+            is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host,
+            $this->debug
+        );
 
         if (isset($options['database_dirs'])) {
             $this->database_manager->setDirs($options['database_dirs']);
@@ -368,6 +387,10 @@ class Deploy
 		$remote_host = is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host;
 
 		$this->timestamp = time();
+
+        $tz = date_default_timezone_get();
+        date_default_timezone_set('UTC');
+
 		$this->remote_target_dir = strtr($this->remote_dir_format, array(
                                                     '%project_name%' => $this->project_name,
                                                     '%timestamp%' => date($this->remote_dir_timestamp_format, $this->timestamp)
@@ -388,6 +411,8 @@ class Deploy
                                                     '%timestamp%' => date($this->remote_dir_timestamp_format, $this->last_timestamp)
 			));
 		}
+
+        date_default_timezone_set($tz);
 
 		$this->database_manager->initialize($this->timestamp, $this->previous_timestamp, $this->last_timestamp);
 	}
@@ -413,7 +438,7 @@ class Deploy
 			}
 		}
 
-		if ($action == 'update') {
+		if (self::UPDATE == $action) {
 			$this->checkFiles(is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host, $this->remote_dir, $this->last_remote_target_dir);
         }
 
@@ -425,7 +450,7 @@ class Deploy
 			}
 		}
 
-		if ($action == 'update') {
+		if (self::UPDATE == $action) {
 			if (is_array($this->remote_host)) {
 				foreach ($this->remote_host as $remote_host) {
 					if (!$files = $this->listFilesToRename($remote_host, $this->remote_dir)) {
@@ -450,11 +475,11 @@ class Deploy
 		}
 
 		// als alles goed is gegaan kan er doorgegaan worden met de deployment
-		if ($action == 'update') {
+		if (self::UPDATE == $action) {
 			return $this->local_shell->inputPrompt('Proceed with deployment? (yes/no): ', 'no') == 'yes';
         }
 
-        if ($action == 'rollback') {
+        if (self::ROLLBACK == $action) {
 			return $this->local_shell->inputPrompt('Proceed with rollback? (yes/no): ', 'no') == 'yes';
         }
 
@@ -462,14 +487,14 @@ class Deploy
 	}
 
 	/**
-	 * Zet het project online en voert database-aanpassingen uit
-	 * Kan alleen worden uitgevoerd nadat check() heeft gedraaid
+	 * Uploads the project and executes database updates.
+	 * Depends on running check() first.
 	 */
 	public function deploy()
 	{
 		$this->logger->log('deploy', LOG_DEBUG);
 
-		if (!$this->check('update')) {
+		if (!$this->check(self::UPDATE)) {
 			return;
         }
 
@@ -516,7 +541,7 @@ class Deploy
 			return;
 		}
 
-		if (!$this->check('rollback')) {
+		if (!$this->check(self::ROLLBACK)) {
 			return;
         }
 
@@ -620,7 +645,7 @@ class Deploy
 
 		$this->logger->log($output);
 
-		if ($return != 0) {
+		if (0 != $return) {
 			$this->logger->log("$remote_host: Clear cache failed");
         }
 	}
@@ -636,14 +661,18 @@ class Deploy
 	{
 		$this->logger->log('checkFiles', LOG_DEBUG);
 
-		if ($target_dir) {
-			$this->logger->log('Changed directories and files:', LOG_INFO, true);
+		if (!$target_dir) {
+            $this->logger->log('No deployment history found');
+            return;
+        }
 
-			$this->rsyncExec($this->rsync_path .' -azcO --force --dry-run --delete --progress '. $this->prepareExcludes() .' ./ '. $this->remote_user .'@'. $remote_host .':'. $remote_dir .'/'. $this->last_remote_target_dir, 'Rsync check is mislukt');
-		} else {
-			$this->logger->log('No deployment history found');
-		}
-	}
+        $this->logger->log('Changed directories and files:', LOG_INFO, true);
+
+        $this->rsyncExec(
+            $this->rsync_path .' -azcO --force --dry-run --delete --progress '. $this->prepareExcludes() .' ./ '.
+                $this->remote_user .'@'. $remote_host .':'. $remote_dir .'/'. $this->last_remote_target_dir, 'Rsync check is mislukt'
+        );
+    }
 
 	/**
 	 * Uploads files to the new directory on the remote server
@@ -656,7 +685,10 @@ class Deploy
 	{
 		$this->logger->log('updateFiles', LOG_DEBUG);
 
-		$this->rsyncExec($this->rsync_path .' -azcO --force --delete --progress '. $this->prepareExcludes() .' '. $this->prepareLinkDest($remote_dir) .' ./ '. $this->remote_user .'@'. $remote_host .':'. $remote_dir .'/'. $target_dir);
+		$this->rsyncExec(
+            $this->rsync_path .' -azcO --force --delete --progress '. $this->prepareExcludes() .' '. $this->prepareLinkDest($remote_dir) .' ./ '.
+                $this->remote_user .'@'. $remote_host .':'. $remote_dir .'/'. $target_dir
+        );
 
 		$this->fixDatadirSymlinks($remote_host, $remote_dir, $target_dir);
 
@@ -680,7 +712,9 @@ class Deploy
 
         $this->logger->log('Creating data dir symlinks:', LOG_DEBUG);
 
-        $cmd = "cd $remote_dir/{$target_dir}; php {$this->datadir_patcher} --datadir-prefix={$this->data_dir_prefix} --previous-dir={$this->last_remote_target_dir} ". implode(' ', $this->data_dirs);
+        $cmd =
+            "cd $remote_dir/{$target_dir}; ".
+            "php {$this->datadir_patcher} --datadir-prefix={$this->data_dir_prefix} --previous-dir={$this->last_remote_target_dir} ". implode(' ', $this->data_dirs);
 
         $output = array();
         $return = null;
@@ -891,16 +925,17 @@ class Deploy
 		$return = null;
 		$this->remote_shell->exec($remote_host, "mkdir -p $remote_dir", $output, $return, '', '', LOG_DEBUG);
 
-		if (!empty($this->data_dirs))
-		{
-			$data_dirs = count($this->data_dirs) > 1 ? '{'. implode(',', $this->data_dirs) .'}' : implode(',', $this->data_dirs);
+		if (empty($this->data_dirs)) {
+            return;
+        }
 
-			$cmd = "mkdir -v -m 0775 -p $remote_dir/{$this->data_dir_prefix}/$data_dirs";
+        $data_dirs = count($this->data_dirs) > 1 ? '{'. implode(',', $this->data_dirs) .'}' : implode(',', $this->data_dirs);
 
-			$output = array();
-			$return = null;
-			$this->remote_shell->exec($remote_host, $cmd, $output, $return, '', '', LOG_DEBUG);
-		}
+        $cmd = "mkdir -v -m 0775 -p $remote_dir/{$this->data_dir_prefix}/$data_dirs";
+
+        $output = array();
+        $return = null;
+        $this->remote_shell->exec($remote_host, $cmd, $output, $return, '', '', LOG_DEBUG);
 	}
 
 	/**
@@ -917,14 +952,15 @@ class Deploy
 
 		$this->prepareRemoteDirectory($remote_host, $remote_dir);
 
-		if ($remote_dir === null)
+		if ($remote_dir === null) {
 			$remote_dir = $this->remote_dir;
+        }
 
 		$dirs = array();
 		$return = null;
 		$this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return, '', '', LOG_DEBUG);
 
-		if ($return !== 0) {
+		if (0 !== $return) {
 			throw new DeployException('ssh initialize failed');
 		}
 
@@ -974,13 +1010,13 @@ class Deploy
 	 */
 	protected function collectPastDeployments($remote_host, $remote_dir)
 	{
-		$this->logger->log('collectPastDeployments', LOG_DEBUG);
+		$this->logger->log("collectPastDeployments($remote_host, $remote_dir)", LOG_DEBUG);
 
 		$dirs = array();
 		$return = null;
 		$this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return);
 
-		if ($return !== 0) {
+		if (0 !== $return) {
 			throw new DeployException('ssh initialize failed');
 		}
 
@@ -1029,7 +1065,7 @@ class Deploy
                     $time_next = strtotime(str_replace(array($this->project_name .'_', '_'), array('', ' '), $deployment_dirs[$key+1]));
 
                     // if the next deployment was on the same day this one can go
-                    if (date('j', $time_next) == date('j', $time))
+                    if (date('Y-m-d', $time_next) == date('Y-m-d', $time))
                     {
                         $this->logger->log("$dirname was replaced the same day");
 
@@ -1073,7 +1109,7 @@ class Deploy
 	 */
 	protected function rsyncExec($command, $error_msg = 'Rsync has failed')
 	{
-		$this->logger->log('execRSync: '. $command, LOG_DEBUG);
+		$this->logger->log('rsyncExec: '. $command, LOG_DEBUG);
 
 		chdir($this->basedir);
 
@@ -1081,7 +1117,7 @@ class Deploy
 
 		$this->logger->log('');
 
-		if ($return !== 0) {
+		if (0 !== $return) {
 			throw new DeployException($error_msg);
 		}
 	}

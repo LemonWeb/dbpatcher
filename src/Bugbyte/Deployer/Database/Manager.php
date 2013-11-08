@@ -2,13 +2,14 @@
 
 namespace Bugbyte\Deployer\Database;
 
+use Bugbyte\Deployer\Deploy;
 use Bugbyte\Deployer\Exceptions\DeployException;
 use Bugbyte\Deployer\Exceptions\DatabaseException;
 use Bugbyte\Deployer\Interfaces\LocalShellInterface;
 use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
-use Bugbyte\Deployer\Interfaces\SQL_update;
+use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
 use Bugbyte\Deployer\Interfaces\LoggerInterface;
-
+use Bugbyte\Deployer\Database\Helper;
 
 class Manager
 {
@@ -16,6 +17,11 @@ class Manager
      * @var LoggerInterface
      */
     protected $logger = null;
+
+    /**
+     * @var bool
+     */
+    protected $debug = false;
 
     /**
      * @var LocalShellInterface
@@ -135,11 +141,18 @@ class Manager
     protected $patches_to_register_as_done = array();
 
     /**
-     * A list of the patches to apply (used for both update and rollback)
+     * A list of the patches to apply.
      *
-     * @var SQL_update[]       With their full relative paths as keys
+     * @var SqlUpdateInterface[]       With their full relative paths as keys
      */
     protected $patches_to_apply = array();
+
+    /**
+     * A list of the patches to revert
+     *
+     * @var array             timestamps of the patches to revert
+     */
+    protected $patches_to_revert = array();
 
     /**
      * Initialization
@@ -149,16 +162,21 @@ class Manager
      * @param RemoteShellInterface $remote_shell
      * @param string $basedir
      * @param string $control_host
+     * @param bool $debug
      */
-    public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, $basedir, $control_host)
+    public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, $basedir, $control_host, $debug = false)
     {
         $this->logger = $logger;
         $this->local_shell = $local_shell;
         $this->remote_shell = $remote_shell;
         $this->basedir = $basedir;
         $this->control_host = $control_host;
+        $this->debug = $debug;
 
-        $this->sql_updates_path = str_replace($this->basedir .'/', '', realpath(__DIR__ .'/../sql_updates'));
+        // determine the relative path to the SQL updates dir of the deployer package
+        $patchdir = realpath(__DIR__ .'/../../../../sql_updates');
+
+        $this->sql_updates_path = str_replace($this->basedir .'/', '', $patchdir);
     }
 
     /**
@@ -197,7 +215,7 @@ class Manager
     public function setHost($host, $port = null)
     {
         $this->database_host = $host;
-        $this->database_port = $port !== null ? $port : 3306;
+        $this->database_port = null !== $port ? $port : 3306;
     }
 
     /**
@@ -249,20 +267,20 @@ class Manager
      *
      * @return bool
      */
-    protected function patchTableExists()
+    protected function checkIfPatchTableExists()
     {
         $output = array();
         $return = 0;
 
         $this->query("SHOW TABLES LIKE 'db_patches'", $output, $return);
 
-        if ($return == 0 && !empty($output)) {
-            $this->logger->log('Check if db_patches exists.. yes.', LOG_INFO);
+        if (0 == $return && !empty($output)) {
+            $this->logger->log('Check if db_patches exists: yes.', LOG_INFO);
             return true;
         }
 
         // db_patches table doesn't exist
-        $this->logger->log('Check if db_patches exists.. no.', LOG_INFO);
+        $this->logger->log('Check if db_patches exists: no.', LOG_INFO);
         return false;
     }
 
@@ -283,120 +301,149 @@ class Manager
         // collect and verify the database login information so the db_patches table can be checked
         $this->getDatabaseLogin(true);
 
-        $this->patches_table_exists = $this->patchTableExists();
-
         // make a list of all available patches
-        $all_patches = $this->findSQLFilesForPeriod(25300, time(), true);
+        $available_patches = $this->findSQLFiles($action);
 
-        $files = array();
+        var_dump($available_patches);
 
-        if (!$this->patches_table_exists) {
-            // old school: select the patches whose timestamps lie between the previous and current deployment timestamps
-            if ($action == 'update') {
-                $files = $this->findSQLFilesForPeriod($this->last_timestamp, $this->current_timestamp);
+        $patches_to_apply = array();
+        $patches_to_revert = array();
+        $patches_to_register_as_done = array();
 
-                // add the patchfile that creates the db_patcher table
-                if (!isset($files[25200])) {
-                    $files[25200] = $this->sql_updates_path .'/sql_19700101_080000.class.php';
-                }
-            }
-            elseif ($action == 'rollback') {
-                $files = $this->findSQLFilesForPeriod($this->last_timestamp, $this->previous_timestamp);
-            }
-        } else {
+        if ($this->patches_table_exists = $this->checkIfPatchTableExists()) {
             // get the list of all performed patches from the database
             $patches = $this->findPerformedSQLPatches();
 
             if (!empty($patches['crashed_update'])) {
-                throw new DeployException("Patch(es) ". implode(', ', $patches['crashed_update']) ." have crashed at previous deploy !");
+                throw new DeployException('Patch(es) '. implode(', ', $patches['crashed_update']) .' have crashed at previous update !');
             }
 
             if (!empty($patches['crashed_rollback'])) {
-                throw new DeployException("Patch(es) ". implode(', ', $patches['crashed_rollback']) ." have crashed at previous rollback !");
+                throw new DeployException('Patch(es) '. implode(', ', $patches['crashed_rollback']) .' have crashed at previous rollback !');
             }
 
-            $applied_patches = $patches['applied'];
+            // list the patches that have not yet been applied
+            $new_patches = array_diff_key($available_patches, $patches['applied']);
 
-            if ($action == 'update') {
-                // find the patches that have not yet been performed
-                $files = array_diff_key($all_patches, $applied_patches);
+            // list the patches that have been removed from the codetree and may need to be reverted
+            $removed_patches = array_diff_key($patches['applied'], $available_patches);
 
-                ksort($files);
+            if (Deploy::UPDATE == $action) {
+                $patches_to_apply = $new_patches;
+                $patches_to_revert = array_keys($removed_patches);
             }
-            elseif ($action == 'rollback') {
+            elseif (Deploy::ROLLBACK == $action) {
                 // find the patches that have been performed on the previous deploy
-                $files = $this->findPerformedSQLPatchesFromPeriod($this->last_timestamp, $this->previous_timestamp);
+                foreach ($patches['applied'] as $datetime => $filename) {
+                    if (($timestamp = strtotime($datetime)) && $timestamp >= $this->previous_timestamp && $timestamp <= $this->current_timestamp) {
+                        $patches_to_revert[] = $timestamp;
+                    }
+                }
             }
-        }
 
-        if (!$this->patches_table_exists) {
-            // make a list of all patches that are not a part of this commit (pre-existing) but should be registered as applied
-            $patches_to_register_as_done = array();
+            var_dump('new patches', $new_patches, 'removed patches', $removed_patches);
 
-            foreach ($all_patches as $timestamp => $filename) {
-                if (!array_key_exists($timestamp, $files)) {
+            // remove db_patches patch itself, the table already exists
+            if (isset($patches_to_apply['19700101000000']))
+            {
+                unset($patches_to_apply['19700101000000']);
+            }
+        } else {
+            // add the db_patches patch
+            $patches_to_apply = array('19700101000000' => $available_patches['19700101000000']);
+
+            if (Deploy::UPDATE == $action) {
+                // make a list of all patches that could be considered as already applied
+
+                foreach ($available_patches as $timestamp => $filename) {
                     $patches_to_register_as_done[$timestamp] = $filename;
                 }
             }
         }
 
-        if ((!isset($files) || empty($files)) && (!isset($patches_to_register_as_done) || empty($patches_to_register_as_done))) {
-            return;
+        ksort($patches_to_apply, SORT_NUMERIC);
+        krsort($patches_to_revert, SORT_NUMERIC);
+        ksort($patches_to_register_as_done, SORT_NUMERIC);
+
+        // check if the files all contain SQL patches and filter out inactive patches
+        $patches_to_apply = array_keys(Helper::checkFiles($this->basedir, $patches_to_apply));
+
+        if (!empty($patches_to_revert)) {
+            $action_to_perform = 'Database patches to revert';
+            $question_to_ask = 'Revert database patches?';
+
+            $this->logger->log("$action_to_perform: ". PHP_EOL . implode(PHP_EOL, $patches_to_revert));
+
+            if ($this->local_shell->inputPrompt("$question_to_ask (yes/no): ", 'no') == 'yes') {
+                $this->patches_to_revert = $patches_to_revert;
+            }
         }
 
-        Helper::checkFiles($this->basedir, $files);
-
-        ksort($files, SORT_NUMERIC);
-
-        if ($action == 'update') {
+        if (!empty($patches_to_apply)) {
             $action_to_perform = 'Database patches to apply';
             $question_to_ask = 'Apply database patches?';
-        } else {
-            $action_to_perform = 'Database patches to revert';
-            $question_to_ask = 'Rollback database patches?';
+
+            $this->logger->log("$action_to_perform: ". PHP_EOL . implode(PHP_EOL, $patches_to_apply));
+
+            if ($this->local_shell->inputPrompt("$question_to_ask (yes/no): ", 'no') == 'yes') {
+                $this->patches_to_apply = $patches_to_apply;
+            }
         }
 
-        $this->logger->log("$action_to_perform: ". PHP_EOL . implode(PHP_EOL, $files));
+        if (!empty($patches_to_register_as_done)) {
+            $this->logger->log('Other patches found ('. count($patches_to_register_as_done) .'): '. PHP_EOL . implode(PHP_EOL, $patches_to_register_as_done));
 
-        if ($this->local_shell->inputPrompt("$question_to_ask (yes/no): ", 'no') == 'yes') {
-            $this->patches_to_apply = $files;
-        }
-
-        if (isset($patches_to_register_as_done) && !empty($patches_to_register_as_done)) {
-            if ($this->local_shell->inputPrompt('Register the other '. count($patches_to_register_as_done) .' patches as done? (yes/no): ', 'no') == 'yes') {
+            if ($this->local_shell->inputPrompt('Register them as done? (yes/no): ', 'no') == 'yes') {
                 $this->patches_to_register_as_done = $patches_to_register_as_done;
             }
+        }
+
+        if (empty($patches_to_apply) && empty($patches_to_register_as_done) && empty($patches_to_revert)) {
+            return;
         }
 
         $this->getDatabaseLogin();
     }
 
     /**
-     * Returns all patches that have already been applied, crashed when being applied or crashed when begin reverted
+     * Returns all patches that have already been applied, crashed when being applied or crashed while being reverted.
      *
      * @return array  ['applied' => array(..), 'crashed_update' => array(..), 'crashed_rollback' => array(..)]
      */
     protected function findPerformedSQLPatches()
     {
+        $this->logger->log('findPerformedSQLPatches', LOG_DEBUG);
+
         $list = array('applied' => array(), 'crashed_update' => array(), 'crashed_rollback' => array());
 
         $output = array();
 
-        $this->query('SELECT patch_name, UNIX_TIMESTAMP(applied_at), UNIX_TIMESTAMP(reverted_at) FROM db_patches ORDER BY patch_timestamp', $output);
+        $this->query('
+            SELECT patch_name, patch_timestamp, applied_at, reverted_at
+            FROM db_patches
+            ORDER BY patch_timestamp, id
+        ', $output);
 
         foreach ($output as $patch_record) {
-            list($patch_name, $applied_at, $reverted_at) = explode("\t", $patch_record);
+            list($patch_name, $patch_timestamp, $applied_at, $reverted_at) = explode("\t", $patch_record);
 
+            var_dump($patch_name, $patch_timestamp, $applied_at, $reverted_at);
+
+            // this update crashed while being applied
             if ($applied_at == 'NULL') {
                 $list['crashed_update'][] = $patch_name;
             }
+            // this update crashed while being reverted
             elseif ($reverted_at != 'NULL') {
                 $list['crashed_rollback'][] = $patch_name;
             }
+            // this update was succesfully applied
             else {
-                $list['applied'][$applied_at] = $patch_name;
+                $list['applied'][$patch_timestamp] = $patch_name;
             }
         }
+
+        var_dump($list);
 
         return $list;
     }
@@ -404,18 +451,23 @@ class Manager
     /**
      * Make a list of all database patches applied within a timeframe.
      *
-     * @param integer $latest_timestamp
-     * @param integer $previous_timestamp
+     * @param string $latest_timestamp
+     * @param string $previous_timestamp
      * @return array
      */
     protected function findPerformedSQLPatchesFromPeriod($latest_timestamp, $previous_timestamp)
     {
+        $this->logger->log("findPerformedSQLPatchesFromPeriod($latest_timestamp, $previous_timestamp)", LOG_DEBUG);
+
         $list = array();
         $output = array();
 
-        $this->query("SELECT patch_name, UNIX_TIMESTAMP(applied_at) FROM db_patches ".
-                     "WHERE applied_at BETWEEN FROM_UNIXTIME($previous_timestamp) AND FROM_UNIXTIME($latest_timestamp) ".
-                     "ORDER BY patch_timestamp", $output);
+        $this->query("
+            SELECT patch_name, applied_at
+            FROM db_patches
+            WHERE applied_at BETWEEN '$previous_timestamp' AND '$latest_timestamp'
+            ORDER BY patch_timestamp, id
+        ", $output);
 
         foreach ($output as $patch_record) {
             list($patch_name, $applied_at) = explode("\t", $patch_record);
@@ -436,13 +488,27 @@ class Manager
     {
         $this->logger->log('updateDatabase', LOG_DEBUG);
 
-        if (!$this->database_checked || empty($this->patches_to_apply)) {
+        if (!$this->database_checked || (empty($this->patches_to_apply) && empty($this->patches_to_revert))) {
             return;
         }
 
-        $this->sendToDatabase(
-            "cd $remote_dir/{$target_dir}; php {$this->database_patcher} update {$this->database_name} {$this->current_timestamp} ". implode(' ', $this->patches_to_apply)
-        );
+        if (!empty($this->patches_to_apply)) {
+            $this->sendToDatabase(
+                "cd {$remote_dir}/{$target_dir}; ".
+                "php {$this->database_patcher} ".
+                    ' --action="update" '.
+                    ' --files="'. implode(',', $this->patches_to_apply) .'"'
+            );
+        }
+
+        if (!empty($this->patches_to_revert)) {
+            $this->sendToDatabase(
+                "cd {$remote_dir}/{$target_dir}; ".
+                "php {$this->database_patcher} ".
+                    ' --action="rollback" '.
+                    ' --patches="'. implode(',', $this->patches_to_revert) .'"'
+            );
+        }
 
         if (!empty($this->patches_to_register_as_done)) {
             $sql = '';
@@ -452,10 +518,13 @@ class Manager
                     $sql .= ', ';
                 }
 
-                $sql .= "('$filepath', $timestamp, FROM_UNIXTIME($timestamp))";
+                $sql .= "('$filepath', $timestamp, NOW())";
             }
 
-            $this->query("INSERT INTO db_patches (patch_name, patch_timestamp, applied_at) VALUES $sql;");
+            $this->query("
+                INSERT INTO db_patches (patch_name, patch_timestamp, applied_at)
+                VALUES $sql;
+            ");
         }
     }
 
@@ -469,13 +538,27 @@ class Manager
     {
         $this->logger->log('rollbackDatabase', LOG_DEBUG);
 
-        if (!$this->database_checked || empty($this->patches_to_apply)) {
+        if (!$this->database_checked || (empty($this->patches_to_apply) && empty($this->patches_to_revert))) {
             return;
         }
 
-        $this->sendToDatabase(
-            "cd $remote_dir/{$previous_target_dir}; php {$this->database_patcher} rollback {$this->database_name} {$this->current_timestamp} ". implode(' ', $this->patches_to_apply)
-        );
+        if (!empty($this->patches_to_apply)) {
+            $this->sendToDatabase(
+                "cd {$remote_dir}/{$previous_target_dir}; ".
+                "php {$this->database_patcher} ".
+                    '--action=update '.
+                    '--files="'. implode(',', $this->patches_to_apply) .'"'
+            );
+        }
+
+        if (!empty($this->patches_to_revert)) {
+            $this->sendToDatabase(
+                "cd {$remote_dir}/{$previous_target_dir}; ".
+                "php {$this->database_patcher} ".
+                ' --action="rollback" '.
+                ' --patches="'. implode(',', $this->patches_to_revert) .'"'
+            );
+        }
     }
 
     /**
@@ -533,7 +616,10 @@ class Manager
             $output = array();
 
             // Simple access test (check if this user can create and drop a table)
-            $this->query("CREATE TABLE `temp_{$this->current_timestamp}` (`field1` INT NULL); DROP TABLE `temp_{$this->current_timestamp}`;", $output, $return, $database_name, $username, $password);
+            $this->query("
+                CREATE TABLE `temp_". $this->current_timestamp ."` (`field1` INT NULL);
+                DROP TABLE `temp_". $this->current_timestamp ."`;
+            ", $output, $return, $database_name, $username, $password);
 
             if ($return != 0) {
                 $this->getDatabaseLogin();
@@ -554,32 +640,27 @@ class Manager
      * @param string $command
      * @param array $output
      * @param integer $return
-     * @param string $database_name
-     * @param string $username
-     * @param string $password
      * @throws DatabaseException
      */
-    public function sendToDatabase($command, &$output = array(), &$return = 0, $database_name = null, $username = null, $password = null)
+    public function sendToDatabase($command, &$output = array(), &$return = 0)
     {
         if ($this->database_checked && $this->database_name == 'skip') {
             return;
         }
 
-        if ($database_name === null) {
-            $database_name = $this->database_name;
-        }
-
-        if ($username === null) {
-            $username = $this->database_user;
-        }
-
-        if ($password === null) {
-            $password = $this->database_pass;
-        }
-
         $this->remote_shell->exec(
             $this->control_host,
-            "$command | mysql -h{$this->database_host} -u$username -p$password $database_name", $output, $return, '/ -p[^ ]+ /', ' -p***** '
+            "$command --host=\"{$this->database_host}\" ".
+                    " --port={$this->database_port} ".
+                    " --user=\"{$this->database_user}\" ".
+                    " --pass=\"{$this->database_pass}\" ".
+                    " --database=\"{$this->database_name}\" ".
+                    " --timestamp=". $this->current_timestamp ." ".
+                    ' --debug='. ((int) $this->debug),
+            $output,
+            $return,
+            '/ --pass=\\"[^"]+\\" /',
+            ' --pass="*****" '
         );
 
         if ($return !== 0) {
@@ -633,77 +714,55 @@ class Manager
     /**
      * Makes a list of all SQL update files within the timeframe, in the order the start- and endtime imply:
      *   if the starttime is *before* the endtime it's an update cycle and the updates are ordered chronologically (old to new).
-     *   if the starttime is *after* the endtime it's a rollback and the updates are reversed (new to old).
+     *   if the starttime is *after* the endtime it's a rollback and the updates are ordered in reverse (new to old).
      *
-     * @param integer $starttime (timestamp)
-     * @param integer $endtime (timestamp)
+     * @param string $action    'update' or 'rollback'
      * @param boolean $quiet
-     * @throws DeployException
      * @return array
      */
-    public function findSQLFilesForPeriod($starttime, $endtime, $quiet = false)
+    public function findSQLFiles($action, $quiet = false)
     {
         $previous_quiet = $this->logger->setQuiet($quiet);
 
-        $this->logger->log('findSQLFilesForPeriod('. date('Y-m-d H:i:s', $starttime) .','. date('Y-m-d H:i:s', $endtime) .')', LOG_DEBUG);
-
-        if (empty($this->database_dirs)) {
-            $this->logger->setQuiet($previous_quiet);
-            return array();
-        }
-
-        $reverse = $starttime > $endtime;
-
-        if ($reverse) {
-            $starttime2 = $starttime;
-            $starttime = $endtime;
-            $endtime = $starttime2;
-            unset($starttime2);
-        }
+        $this->logger->log("findSQLFiles($action, ". var_export($quiet, true) .")", LOG_DEBUG);
 
         $update_files = array();
 
-        foreach ($this->database_dirs as $database_dir) {
-            $dir = new \DirectoryIterator($database_dir);
+        if (!empty($this->database_dirs)) {
+            foreach ($this->database_dirs as $database_dir) {
+                $dir = new \DirectoryIterator($database_dir);
 
-            foreach ($dir as $entry) {
-                /** @var \SplFileInfo|\DirectoryIterator $entry */
+                foreach ($dir as $entry) {
+                    /** @var \SplFileInfo|\DirectoryIterator $entry */
 
-                if ($entry->isDot() || !$entry->isFile()) {
-                    continue;
-                }
+                    if ($entry->isDot() || !$entry->isFile()) {
+                        continue;
+                    }
 
-                if (preg_match('/sql_(\d{8}_\d{6})\.class.php/', $entry->getFilename(), $matches)) {
-                    $timestamp = Helper::convertFilenameToTimestamp($entry->getFilename());
+                    if (preg_match('/^sql_(\d{8}_\d{6}).*?\.php$/', $entry->getFilename(), $matches)) {
+                        $timestamp = Helper::convertFilenameToDateTime($entry->getFilename());
 
-                    if ($timestamp > $starttime && $timestamp < $endtime) {
                         $update_files[$timestamp] = $entry->getPathname();
                     }
                 }
             }
-        }
 
-        if (!empty($update_files)) {
-            $count_files = count($update_files);
+            if (!empty($update_files)) {
+                $count_files = count($update_files);
 
-            if (!$reverse) {
-                ksort($update_files, SORT_NUMERIC);
+                if (Deploy::UPDATE == $action) {
+                    ksort($update_files, \SORT_NUMERIC);
 
-                if (!$quiet) {
-                    $this->logger->log($count_files .' SQL update patch'. ($count_files > 1 ? 'es' : '') .' between '. date('Y-m-d H:i:s', $starttime) .' and '. date('Y-m-d H:i:s', $endtime) .':');
+                    $this->logger->log($count_files .' SQL update patch'. ($count_files > 1 ? 'es' : '') .':');
+                } elseif (Deploy::ROLLBACK == $action) {
+                    krsort($update_files, \SORT_NUMERIC);
+
+                    $this->logger->log($count_files .' SQL rollback patch'. ($count_files > 1 ? 'es' : '') .':');
                 }
+
+                $this->logger->log($update_files);
             } else {
-                krsort($update_files, SORT_NUMERIC);
-
-                if (!$quiet) {
-                    $this->logger->log($count_files .' SQL rollback patch'. ($count_files > 1 ? 'es' : '') .' between '. date('Y-m-d H:i:s', $starttime) .' and '. date('Y-m-d H:i:s', $endtime) .':');
-                }
-            }
-
-            $this->logger->log($update_files);
-        } else {
-            if (!$quiet) {
-                $this->logger->log('No SQL patches between '. date('Y-m-d H:i:s', $starttime) .' and '. date('Y-m-d H:i:s', $endtime));
+                $this->logger->log('No SQL patches found.');
             }
         }
 

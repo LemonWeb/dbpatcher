@@ -11,10 +11,10 @@ namespace Bugbyte\Deployer\Interfaces;
 
 	<?php
 
-    use Bugbyte\Deployer\Interfaces\SQL_update;
+    use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
 
 
-	class sql_20110104_164856 implements \Bugbyte\Deployer\Interfaces\SQL_update
+	class sql_20110104_164856 implements SqlUpdateInterface
 	{
  		public function isActive()
  		{
@@ -52,7 +52,7 @@ namespace Bugbyte\Deployer\Interfaces;
  *
  * To ensure predictable behavior the updates are always executed chronologically, and in reverse order in case of a rollback.
  */
-interface SQL_update
+interface SqlUpdateInterface
 {
     /**
      * Indicates this patch is small and can be deployed at any time.
