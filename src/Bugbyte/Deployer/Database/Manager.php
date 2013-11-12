@@ -5,13 +5,14 @@ namespace Bugbyte\Deployer\Database;
 use Bugbyte\Deployer\Deploy;
 use Bugbyte\Deployer\Exceptions\DeployException;
 use Bugbyte\Deployer\Exceptions\DatabaseException;
+use Bugbyte\Deployer\Interfaces\DatabaseManagerInterface;
 use Bugbyte\Deployer\Interfaces\LocalShellInterface;
 use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
 use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
 use Bugbyte\Deployer\Interfaces\LoggerInterface;
-use Bugbyte\Deployer\Database\Helper;
 
-class Manager
+
+class Manager implements DatabaseManagerInterface
 {
     /**
      * @var LoggerInterface
@@ -249,8 +250,6 @@ class Manager
     }
 
     /**
-     * Check the database credentials and if the db_patches table exists
-     *
      * @param int $current_timestamp
      * @param int $previous_timestamp
      * @param int $last_timestamp
@@ -265,6 +264,7 @@ class Manager
     /**
      * Checks for the existence of the table db_patches
      *
+     * @throws \Bugbyte\Deployer\Exceptions\DeployException
      * @return bool
      */
     protected function checkIfPatchTableExists()
@@ -274,18 +274,21 @@ class Manager
 
         $this->query("SHOW TABLES LIKE 'db_patches'", $output, $return);
 
-        if (0 == $return && !empty($output)) {
-            $this->logger->log('Check if db_patches exists: yes.', LOG_INFO);
-            return true;
+        if (0 == $return) {
+            if (!empty($output)) {
+                $this->logger->log('Check if db_patches exists: yes.', LOG_INFO);
+                return true;
+            } else {
+                $this->logger->log('Check if db_patches exists: no.', LOG_INFO);
+                return false;
+            }
         }
 
-        // db_patches table doesn't exist
-        $this->logger->log('Check if db_patches exists: no.', LOG_INFO);
-        return false;
+        throw new DeployException('There was a problem checking for the db_patches table.', 1);
     }
 
     /**
-     * Performs database migrations
+     * Check if the db_patches table exists and compare it to the local patches.
      *
      * @param string $action             update of rollback
      * @throws \Bugbyte\Deployer\Exceptions\DeployException
@@ -304,8 +307,6 @@ class Manager
         // make a list of all available patches
         $available_patches = $this->findSQLFiles($action);
 
-        var_dump($available_patches);
-
         $patches_to_apply = array();
         $patches_to_revert = array();
         $patches_to_register_as_done = array();
@@ -314,47 +315,40 @@ class Manager
             // get the list of all performed patches from the database
             $patches = $this->findPerformedSQLPatches();
 
-            if (!empty($patches['crashed_update'])) {
-                throw new DeployException('Patch(es) '. implode(', ', $patches['crashed_update']) .' have crashed at previous update !');
-            }
-
-            if (!empty($patches['crashed_rollback'])) {
-                throw new DeployException('Patch(es) '. implode(', ', $patches['crashed_rollback']) .' have crashed at previous rollback !');
-            }
-
             // list the patches that have not yet been applied
-            $new_patches = array_diff_key($available_patches, $patches['applied']);
+            $new_patches = array_diff_key($available_patches, $patches);
 
             // list the patches that have been removed from the codetree and may need to be reverted
-            $removed_patches = array_diff_key($patches['applied'], $available_patches);
+            $removed_patches = array_diff_key($patches, $available_patches);
 
             if (Deploy::UPDATE == $action) {
                 $patches_to_apply = $new_patches;
                 $patches_to_revert = array_keys($removed_patches);
-            }
-            elseif (Deploy::ROLLBACK == $action) {
+            } elseif (Deploy::ROLLBACK == $action) {
                 // find the patches that have been performed on the previous deploy
-                foreach ($patches['applied'] as $datetime => $filename) {
-                    if (($timestamp = strtotime($datetime)) && $timestamp >= $this->previous_timestamp && $timestamp <= $this->current_timestamp) {
-                        $patches_to_revert[] = $timestamp;
+
+                foreach ($patches as $datetime => $applied_at) {
+                    if (($timestamp = strtotime($applied_at)) && $timestamp >= $this->previous_timestamp && $timestamp <= $this->last_timestamp) {
+                        $patches_to_revert[] = $datetime;
                     }
                 }
             }
 
-            var_dump('new patches', $new_patches, 'removed patches', $removed_patches);
-
             // remove db_patches patch itself, the table already exists
-            if (isset($patches_to_apply['19700101000000']))
-            {
+            if (isset($patches_to_apply['19700101000000'])) {
                 unset($patches_to_apply['19700101000000']);
             }
         } else {
             // add the db_patches patch
             $patches_to_apply = array('19700101000000' => $available_patches['19700101000000']);
 
-            if (Deploy::UPDATE == $action) {
-                // make a list of all patches that could be considered as already applied
+            unset($available_patches['19700101000000']);
 
+            if (Deploy::UPDATE == $action) {
+                // offer to execute all other patches aswell, or only register them as done
+
+
+                // make a list of all patches that could be considered as already applied
                 foreach ($available_patches as $timestamp => $filename) {
                     $patches_to_register_as_done[$timestamp] = $filename;
                 }
@@ -408,13 +402,16 @@ class Manager
     /**
      * Returns all patches that have already been applied, crashed when being applied or crashed while being reverted.
      *
-     * @return array  ['applied' => array(..), 'crashed_update' => array(..), 'crashed_rollback' => array(..)]
+     * @throws \Bugbyte\Deployer\Exceptions\DeployException
+     * @return array
      */
     protected function findPerformedSQLPatches()
     {
         $this->logger->log('findPerformedSQLPatches', LOG_DEBUG);
 
-        $list = array('applied' => array(), 'crashed_update' => array(), 'crashed_rollback' => array());
+        $applied_patches = array();
+        $crashed_patches = array();
+        $reverted_patches = array();
 
         $output = array();
 
@@ -427,25 +424,32 @@ class Manager
         foreach ($output as $patch_record) {
             list($patch_name, $patch_timestamp, $applied_at, $reverted_at) = explode("\t", $patch_record);
 
-            var_dump($patch_name, $patch_timestamp, $applied_at, $reverted_at);
+            // skip the db_patches patch itself
+            if ('19700101000000' == $patch_timestamp) {
+                continue;
+            }
 
-            // this update crashed while being applied
             if ($applied_at == 'NULL') {
-                $list['crashed_update'][] = $patch_name;
-            }
-            // this update crashed while being reverted
-            elseif ($reverted_at != 'NULL') {
-                $list['crashed_rollback'][] = $patch_name;
-            }
-            // this update was succesfully applied
-            else {
-                $list['applied'][$patch_timestamp] = $patch_name;
+                // this patch crashed while being applied
+                $crashed_patches[] = $patch_name;
+            } elseif ($reverted_at != 'NULL') {
+                // this patch crashed while being reverted
+                $reverted_patches[] = $patch_name;
+            } else {
+                // this patch was succesfully applied
+                $applied_patches[$patch_timestamp] = $applied_at;
             }
         }
 
-        var_dump($list);
+        if (!empty($crashed_patches)) {
+            throw new DeployException('Patch(es) '. implode(', ', $crashed_patches) .' have crashed at previous update !');
+        }
 
-        return $list;
+        if (!empty($reverted_patches)) {
+            throw new DeployException('Patch(es) '. implode(', ', $reverted_patches) .' have crashed at previous rollback !');
+        }
+
+        return $applied_patches;
     }
 
     /**
@@ -518,7 +522,7 @@ class Manager
                     $sql .= ', ';
                 }
 
-                $sql .= "('$filepath', $timestamp, NOW())";
+                $sql .= "('$filepath', $timestamp, FROM_UNIXTIME({$this->current_timestamp}))";
             }
 
             $this->query("
@@ -563,6 +567,7 @@ class Manager
 
     /**
      * Prompt the user to enter the database name, login and password to use on the remote server for executing the database patches.
+     * The credentials are checked by creating and dropping a table.
      *
      * @param bool $pre_check       If this is just a check to access te database (to check the db_patches table) or asking for confirmation to send the changes
      */
@@ -607,8 +612,7 @@ class Manager
             $password = '';
 
             $this->logger->log('Skip database patches');
-        }
-        else {
+        } else {
             $username = $this->database_user !== null ? $this->database_user : $this->local_shell->inputPrompt('Database username [root]: ', 'root');
             $password = $this->database_pass !== null ? $this->database_pass : $this->local_shell->inputPrompt('Database password: ', '', true);
 
@@ -655,7 +659,7 @@ class Manager
                     " --user=\"{$this->database_user}\" ".
                     " --pass=\"{$this->database_pass}\" ".
                     " --database=\"{$this->database_name}\" ".
-                    " --timestamp=". $this->current_timestamp ." ".
+                    " --timestamp=\"". date(DATE_RSS, $this->current_timestamp) ."\" ".
                     ' --debug='. ((int) $this->debug),
             $output,
             $return,
@@ -671,7 +675,7 @@ class Manager
     /**
      * Wrapper for sendToDatabase() to send plain commands to the database
      *
-     * @param string$command
+     * @param string $command
      * @param array $output
      * @param int $return
      * @param string $database_name

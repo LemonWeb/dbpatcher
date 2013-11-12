@@ -17,8 +17,6 @@ require __DIR__ .'/../../../autoload.php';
 
 $args = Helper::parseArgs($_SERVER['argv']);
 
-var_dump((bool) $args['debug']);
-
 $logger = new Logger(null, isset($args['debug']) ? (bool) $args['debug'] : false);
 
 try {
@@ -30,7 +28,7 @@ try {
                     ' --database="[database name]"'.
                     ' --user="[username]"'.
                     ' --pass="[password]"'.
-                    ' --timestamp="[Y-m-d H:i:s]"'.
+                    ' --timestamp="[DATE_RSS]"'.
                     ' < --files="[sql update filename],[sql update filename]" > '.
                     ' < --patches="[timestamp,timestamp]"] >';
 
@@ -40,12 +38,10 @@ try {
         ||
         !(isset($args['files']) || isset($args['patches']))
         ||
-        !($datetime = date(DatabaseHelper::DATETIME_FORMAT, $args['timestamp']))
+        !($datetime = date(DatabaseHelper::DATETIME_FORMAT, strtotime($args['timestamp'])))
     ) {
         throw new DeployException($usage, 1);
     }
-
-    var_dump($args['timestamp'], $datetime);
 
     $rootpath = Helper::findRootPath($_SERVER['argv'][0], __FILE__);
 

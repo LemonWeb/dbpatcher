@@ -2,14 +2,17 @@
 
 namespace Bugbyte\Deployer;
 
+use Bugbyte\Deployer\Database\Helper;
 use Bugbyte\Deployer\Exceptions\DeployException;
+use Bugbyte\Deployer\Interfaces\DatabaseManagerInterface;
 use Bugbyte\Deployer\Interfaces\LocalShellInterface;
 use Bugbyte\Deployer\Interfaces\LoggerInterface;
 use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
 use Bugbyte\Deployer\Shell\LocalShell;
 use Bugbyte\Deployer\Shell\RemoteShell;
-use Bugbyte\Deployer\Database\Manager;
+use Bugbyte\Deployer\Database\Manager as DatabaseManager;
 use Bugbyte\Deployer\Logger\Logger;
+
 
 /**
  * The deployer
@@ -43,7 +46,7 @@ class Deploy
     protected $remote_shell = null;
 
     /**
-     * @var Manager
+     * @var DatabaseManagerInterface
      */
     protected $database_manager = null;
 
@@ -262,6 +265,8 @@ class Deploy
 	 *
 	 * @param array $options
 	 * @throws DeployException
+     *
+     * TODO: make the dependencies (logger, shells, databasemanager) configurable
 	 */
 	public function __construct(array $options)
 	{
@@ -287,66 +292,76 @@ class Deploy
         $this->remote_shell = new RemoteShell($this->logger, $this->remote_user, $ssh_path);
 
         // initialize database manager
-        $this->database_manager = new Manager(
-            $this->logger,
-            $this->local_shell,
-            $this->remote_shell,
-            $this->basedir,
-            is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host,
-            $this->debug
-        );
-
         if (isset($options['database_dirs'])) {
+            $this->database_manager = new DatabaseManager(
+                $this->logger,
+                $this->local_shell,
+                $this->remote_shell,
+                $this->basedir,
+                is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host,
+                $this->debug
+            );
+
+            if (!$this->database_manager instanceof DatabaseManagerInterface) {
+                throw new DeployException('Object of type '. get_class($this->database_manager) .' does not implement DatabaseManagerInterface', 1);
+            }
+
             $this->database_manager->setDirs($options['database_dirs']);
+
+            if (isset($options['database_patcher'])) {
+                $this->database_manager->setPatcher($options['database_patcher']);
+            }
+
+            // als database host niet wordt meegegeven automatisch de eerste remote host pakken.
+            $this->database_manager->setHost(
+                isset($options['database_host'])
+                    ? $options['database_host']
+                    : (is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host),
+                isset($options['database_port'])
+                    ? $options['database_port']
+                    : null
+            );
+
+            if (isset($options['database_name'])) {
+                $this->database_manager->setDatabaseName($options['database_name']);
+            }
+
+            if (isset($options['database_user'])) {
+                $this->database_manager->setUsername($options['database_user']);
+            }
+
+            if (isset($options['database_pass'])) {
+                $this->database_manager->setPassword($options['database_pass']);
+            }
         }
 
-        if (isset($options['database_patcher'])) {
-            $this->database_manager->setPatcher($options['database_patcher']);
+        if (isset($options['rsync_excludes'])) {
+            $this->rsync_excludes = (array)$options['rsync_excludes'];
         }
 
-        // als database host niet wordt meegegeven automatisch de eerste remote host pakken.
-        $this->database_manager->setHost(
-            isset($options['database_host'])
-                ? $options['database_host']
-                : (is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host),
-            isset($options['database_port'])
-                ? $options['database_port']
-                : null
-        );
-
-        if (isset($options['database_name'])) {
-            $this->database_manager->setDatabaseName($options['database_name']);
+        if (isset($options['data_dirs'])) {
+            $this->data_dirs = $options['data_dirs'];
         }
 
-        if (isset($options['database_user'])) {
-            $this->database_manager->setUsername($options['database_user']);
+        if (isset($options['datadir_patcher'])) {
+            $this->datadir_patcher = $options['datadir_patcher'];
         }
 
-        if (isset($options['database_pass'])) {
-            $this->database_manager->setPassword($options['database_pass']);
+        if (isset($options['gearman_restarter'])) {
+            $this->gearman_restarter = $options['gearman_restarter'];
         }
 
+        if (isset($options['auto_init'])) {
+            $this->auto_init = $options['auto_init'];
+        }
 
-		if (isset($options['rsync_excludes']))
-			$this->rsync_excludes = (array) $options['rsync_excludes'];
+        if (isset($options['target_specific_files'])) {
+            $this->target_specific_files = $options['target_specific_files'];
+        }
 
-		if (isset($options['data_dirs']))
-			$this->data_dirs = $options['data_dirs'];
-
-		if (isset($options['datadir_patcher']))
-			$this->datadir_patcher = $options['datadir_patcher'];
-
-		if (isset($options['gearman_restarter']))
-			$this->gearman_restarter = $options['gearman_restarter'];
-
-		if (isset($options['auto_init']))
-			$this->auto_init = $options['auto_init'];
-
-		if (isset($options['target_specific_files']))
-			$this->target_specific_files = $options['target_specific_files'];
-
-		if (isset($options['gearman']))
-			$this->gearman = $options['gearman'];
+        if (isset($options['gearman'])) {
+            $this->gearman = $options['gearman'];
+        }
 
 		if (isset($options['apc_deploy_version_template']) && isset($options['apc_deploy_version_path']) && isset($options['apc_deploy_setrev_url'])) {
 			$this->apc_deploy_version_template = $options['apc_deploy_version_template'];
@@ -355,12 +370,12 @@ class Deploy
 			if (!(
 					is_string($options['remote_host']) &&
 					is_string($options['apc_deploy_setrev_url'])
-				 ) &&
+				) &&
 				!(
 					is_array($options['remote_host']) &&
 					is_array($options['apc_deploy_setrev_url']) &&
 					count($options['remote_host']) == count($options['apc_deploy_setrev_url'])
-				 )
+				)
 			   ) {
 				throw new DeployException('apc_deploy_setrev_url must be similar to remote_host (string or array with the same number of elements)');
 			}
@@ -381,24 +396,21 @@ class Deploy
 	 */
 	protected function initialize()
 	{
-		$this->logger->log('initialisatie', LOG_DEBUG);
+		$this->logger->log('initialize', LOG_DEBUG);
 
 		// in case of multiple remote hosts use the first
 		$remote_host = is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host;
 
-		$this->timestamp = time();
+        $this->timestamp = time();
 
-        $tz = date_default_timezone_get();
-        date_default_timezone_set('UTC');
+        list($this->previous_timestamp, $this->last_timestamp) = $this->findPastDeploymentTimestamps($remote_host, $this->remote_dir);
 
-		$this->remote_target_dir = strtr($this->remote_dir_format, array(
+        $this->remote_target_dir = strtr($this->remote_dir_format, array(
                                                     '%project_name%' => $this->project_name,
                                                     '%timestamp%' => date($this->remote_dir_timestamp_format, $this->timestamp)
 		));
 
-		list($this->previous_timestamp, $this->last_timestamp) = $this->findPastDeploymentTimestamps($remote_host, $this->remote_dir);
-
-		if ($this->previous_timestamp) {
+        if ($this->previous_timestamp) {
 			$this->previous_remote_target_dir = strtr($this->remote_dir_format, array(
                                                     '%project_name%' => $this->project_name,
                                                     '%timestamp%' => date($this->remote_dir_timestamp_format, $this->previous_timestamp)
@@ -412,9 +424,9 @@ class Deploy
 			));
 		}
 
-        date_default_timezone_set($tz);
-
-		$this->database_manager->initialize($this->timestamp, $this->previous_timestamp, $this->last_timestamp);
+        if ($this->database_manager) {
+            $this->database_manager->initialize($this->timestamp, $this->previous_timestamp, $this->last_timestamp);
+        }
 	}
 
 	/**
@@ -442,7 +454,9 @@ class Deploy
 			$this->checkFiles(is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host, $this->remote_dir, $this->last_remote_target_dir);
         }
 
-        $this->database_manager->check($action);
+        if ($this->database_manager) {
+            $this->database_manager->check($action);
+        }
 
 		if (isset($this->apc_deploy_version_template)) {
 			if (!file_exists($this->apc_deploy_version_template)) {
@@ -506,7 +520,9 @@ class Deploy
 			}
 
 			// na de uploads de database prepareren
-			$this->database_manager->update($this->remote_dir, $this->remote_target_dir);
+            if ($this->database_manager) {
+                $this->database_manager->update($this->remote_dir, $this->remote_target_dir);
+            }
 
 			// als de files en database klaarstaan kan de nieuwe versie geactiveerd worden
 			// door de symlinks te updaten en postDeploy te draaien
@@ -519,7 +535,9 @@ class Deploy
 			$this->preDeploy($this->remote_host, $this->remote_dir, $this->remote_target_dir);
 			$this->updateFiles($this->remote_host, $this->remote_dir, $this->remote_target_dir);
 
-			$this->database_manager->update($this->remote_dir, $this->remote_target_dir);
+            if ($this->database_manager) {
+                $this->database_manager->update($this->remote_dir, $this->remote_target_dir);
+            }
 
 			$this->changeSymlink($this->remote_host, $this->remote_dir, $this->remote_target_dir);
 			$this->postDeploy($this->remote_host, $this->remote_dir, $this->remote_target_dir);
@@ -553,7 +571,9 @@ class Deploy
 			}
 
 			// nadat de symlinks zijn teruggedraaid de database terugdraaien (let op dat de huidige versie dat nog moet doen)
-            $this->database_manager->rollback($this->remote_dir, $this->last_remote_target_dir);
+            if ($this->database_manager) {
+                $this->database_manager->rollback($this->remote_dir, $this->last_remote_target_dir);
+            }
 
 			// de caches resetten
 			foreach ($this->remote_host as $remote_host) {
@@ -570,7 +590,9 @@ class Deploy
 			$this->changeSymlink($this->remote_host, $this->remote_dir, $this->previous_remote_target_dir);
 
             // nadat de symlinks zijn teruggedraaid de database terugdraaien (let op dat de huidige versie dat nog moet doen)
-            $this->database_manager->rollback($this->remote_dir, $this->last_remote_target_dir);
+            if ($this->database_manager) {
+                $this->database_manager->rollback($this->remote_dir, $this->last_remote_target_dir);
+            }
 
 			$this->clearRemoteCaches($this->remote_host, $this->remote_dir, $this->previous_remote_target_dir);
 			$this->postRollback($this->remote_host, $this->remote_dir, $this->previous_remote_target_dir);
@@ -784,13 +806,13 @@ class Deploy
 	 */
 	protected function renameTargetFiles($remote_host, $remote_dir)
 	{
-		if ($files_to_move = $this->listFilesToRename($remote_host, $remote_dir))
-		{
+		if ($files_to_move = $this->listFilesToRename($remote_host, $remote_dir)) {
 			// configfiles verplaatsen
 			$target_files_to_move = '';
 
-			foreach ($files_to_move as $newpath => $currentpath)
+			foreach ($files_to_move as $newpath => $currentpath) {
 				$target_files_to_move .= "mv $currentpath $newpath; ";
+            }
 
 			$output = array();
 			$return = null;
@@ -808,23 +830,17 @@ class Deploy
 	 */
 	protected function listFilesToRename($remote_host, $remote_dir)
 	{
-		if (!isset($this->files_to_rename["$remote_host-$remote_dir"]))
-		{
+		if (!isset($this->files_to_rename["$remote_host-$remote_dir"])) {
 			$target_files_to_move = array();
 
 			// doelspecifieke files hernoemen
-			if (!empty($this->target_specific_files))
-			{
-				foreach ($this->target_specific_files as $filepath)
-				{
+			if (!empty($this->target_specific_files)) {
+				foreach ($this->target_specific_files as $filepath) {
 					$ext = pathinfo($filepath, PATHINFO_EXTENSION);
 
-					if (isset($target_files_to_move[$filepath]))
-					{
+					if (isset($target_files_to_move[$filepath])) {
 						$target_filepath = str_replace(".$ext", ".{$this->target}.$ext", $target_files_to_move[$filepath]);
-					}
-					else
-					{
+					} else {
 						$target_filepath = str_replace(".$ext", ".{$this->target}.$ext", $filepath);
 					}
 
@@ -833,12 +849,9 @@ class Deploy
 			}
 
 			// controleren of alle files bestaan
-			if (!empty($target_files_to_move))
-			{
-				foreach ($target_files_to_move as $current_filepath)
-				{
-					if (!file_exists($current_filepath))
-					{
+			if (!empty($target_files_to_move)) {
+				foreach ($target_files_to_move as $current_filepath) {
+					if (!file_exists($current_filepath)) {
 						throw new DeployException("$current_filepath does not exist");
 					}
 				}
@@ -864,12 +877,9 @@ class Deploy
 
 		$exclude_param = '';
 
-		if (count($this->rsync_excludes) > 0)
-		{
-			foreach ($this->rsync_excludes as $exclude)
-			{
-				if (!file_exists($exclude))
-				{
+		if (count($this->rsync_excludes) > 0) {
+			foreach ($this->rsync_excludes as $exclude) {
+				if (!file_exists($exclude)) {
 					throw new DeployException('Rsync exclude file not found: '. $exclude);
 				}
 
@@ -877,10 +887,8 @@ class Deploy
 			}
 		}
 
-		if (!empty($this->data_dirs))
-		{
-			foreach ($this->data_dirs as $data_dir)
-			{
+		if (!empty($this->data_dirs)) {
+			foreach ($this->data_dirs as $data_dir) {
 				$exclude_param .= '--exclude '. escapeshellarg("/$data_dir") .' ';
 			}
 		}
@@ -898,13 +906,13 @@ class Deploy
 	{
 		$this->logger->log('prepareLinkDest', LOG_DEBUG);
 
-		if ($remote_dir === null)
+		if ($remote_dir === null) {
 			$remote_dir = $this->remote_dir;
+        }
 
 		$linkdest = '';
 
-		if ($this->last_remote_target_dir)
-		{
+		if ($this->last_remote_target_dir) {
 			$linkdest = "--copy-dest=$remote_dir/{$this->last_remote_target_dir}";
 		}
 
@@ -964,18 +972,15 @@ class Deploy
 			throw new DeployException('ssh initialize failed');
 		}
 
-		if (count($dirs))
-		{
+		if (count($dirs)) {
 			$past_deployments = array();
 			$deployment_timestamps = array();
 
-			foreach ($dirs as $dirname)
-			{
+			foreach ($dirs as $dirname) {
 				if (
-					preg_match('/'. preg_quote($this->project_name) .'_\d{4}-\d{2}-\d{2}_\d{6}/', $dirname) &&
-					($time = strtotime(str_replace(array($this->project_name .'_', '_'), array('', ' '), $dirname)))
-				)
-				{
+					preg_match('/'. preg_quote($this->project_name, '/') .'_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(\d{2})/', $dirname, $matches) &&
+					($time = mktime($matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1]))
+				) {
 					$past_deployments[] = $dirname;
 					$deployment_timestamps[] = $time;
 				}
@@ -988,10 +993,11 @@ class Deploy
 				$this->logger->log('Past deployments:', LOG_INFO, true);
 				$this->logger->log($past_deployments, LOG_INFO, true);
 
-				sort($deployment_timestamps);
+				sort($deployment_timestamps, SORT_NUMERIC);
 
-				if ($count >= 2)
+				if ($count >= 2) {
 					return array_slice($deployment_timestamps, -2);
+                }
 
 				return array(null, array_pop($deployment_timestamps));
 			}
@@ -1026,17 +1032,14 @@ class Deploy
 
         $deployment_dirs = array();
 
-        foreach ($dirs as $dirname)
-        {
-            if (preg_match('/'. preg_quote($this->project_name) .'_\d{4}-\d{2}-\d{2}_\d{6}/', $dirname))
-            {
+        foreach ($dirs as $dirname) {
+            if (preg_match('/'. preg_quote($this->project_name) .'_\d{4}-\d{2}-\d{2}_\d{6}/', $dirname)) {
                 $deployment_dirs[] = $dirname;
             }
         }
 
         // de two latest deployments always stay
-        if (count($deployment_dirs) <= 2)
-        {
+        if (count($deployment_dirs) <= 2) {
             return array();
         }
 
@@ -1046,8 +1049,7 @@ class Deploy
 
         $deployment_dirs = array_slice($deployment_dirs, 0, -2);
 
-        foreach ($deployment_dirs as $key => $dirname)
-        {
+        foreach ($deployment_dirs as $key => $dirname) {
             $time = strtotime(str_replace(array($this->project_name .'_', '_'), array('', ' '), $dirname));
 
             // deployments older than a month can go
@@ -1055,31 +1057,21 @@ class Deploy
                 $this->logger->log("$dirname is older than a month");
 
                 $dirs_to_delete[] = $dirname;
-            }
-
-            // of deployments older than a week only the last one of the day stays
-            elseif ($time < strtotime('-1 week'))
-            {
-                if (isset($deployment_dirs[$key+1]))
-                {
+            } elseif ($time < strtotime('-1 week')) {
+                // of deployments older than a week only the last one of the day stays
+                if (isset($deployment_dirs[$key+1])) {
                     $time_next = strtotime(str_replace(array($this->project_name .'_', '_'), array('', ' '), $deployment_dirs[$key+1]));
 
                     // if the next deployment was on the same day this one can go
-                    if (date('Y-m-d', $time_next) == date('Y-m-d', $time))
-                    {
+                    if (date('Y-m-d', $time_next) == date('Y-m-d', $time)) {
                         $this->logger->log("$dirname was replaced the same day");
 
                         $dirs_to_delete[] = $dirname;
-                    }
-                    else
-                    {
+                    } else {
                         $this->logger->log("$dirname stays");
                     }
                 }
-            }
-
-            else
-            {
+            } else {
                 $this->logger->log("$dirname stays");
             }
         }
@@ -1094,8 +1086,7 @@ class Deploy
 	 */
 	protected function deletePastDeployments($past_deployments)
 	{
-		foreach ($past_deployments as $past_deployment)
-		{
+		foreach ($past_deployments as $past_deployment) {
 			$this->rollbackFiles($past_deployment['remote_host'], $past_deployment['remote_dir'], implode(' ', $past_deployment['dirs']));
 		}
 	}

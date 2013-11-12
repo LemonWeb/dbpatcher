@@ -4,6 +4,9 @@ namespace Bugbyte\Deployer\Logger;
 
 use Bugbyte\Deployer\Interfaces\LoggerInterface as LoggerInterface;
 
+/**
+ * TODO: replace this with a PSR-3 logger
+ */
 class Logger implements LoggerInterface
 {
     /**

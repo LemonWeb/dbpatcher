@@ -3,6 +3,7 @@
 namespace Bugbyte\Deployer\Patchers;
 
 use Bugbyte\Deployer\Database\Helper as DatabaseHelper;
+use Bugbyte\Deployer\Exceptions\DatabaseException;
 use Bugbyte\Deployer\Exceptions\DeployException;
 use Bugbyte\Deployer\Interfaces\DatabaseDriverInterface;
 use Bugbyte\Deployer\Interfaces\LoggerInterface;
@@ -150,8 +151,7 @@ class Database
 
             if ($mError = $this->driver->getLastError())
             {
-                var_dump($mError);
-                exit;
+                throw new DatabaseException($mError, 1);
             }
 
             $this->driver->doCommit();
@@ -208,8 +208,6 @@ class Database
                 return;
             }
 
-            var_dump($patch_info);
-
             // mark the patch as being reverted
             $this->driver->query("
                 UPDATE db_patches
@@ -221,6 +219,10 @@ class Database
             $this->driver->startTransaction();
 
             $this->driver->query($patch_info['down_sql']);
+
+            if ($error = $this->driver->getLastError()) {
+                throw new DatabaseException($error, 1);
+            }
 
             $this->driver->doCommit();
 
