@@ -490,14 +490,14 @@ class Deploy
 
 		// als alles goed is gegaan kan er doorgegaan worden met de deployment
 		if (self::UPDATE == $action) {
-			return $this->local_shell->inputPrompt('Proceed with deployment? (yes/no): ', 'no') == 'yes';
+			return $this->local_shell->inputPrompt('Proceed with deployment? (y/n) [n]: ', 'n', false, array('y', 'n')) == 'y';
         }
 
         if (self::ROLLBACK == $action) {
-			return $this->local_shell->inputPrompt('Proceed with rollback? (yes/no): ', 'no') == 'yes';
+			return $this->local_shell->inputPrompt('Proceed with rollback? (y/n) [n]: ', 'n', false, array('y', 'n')) == 'y';
         }
 
-        throw new DeployException('Action must be \'update\' or \'rollback\'.');
+        throw new DeployException("Action must be 'update' or 'rollback'.");
 	}
 
 	/**
@@ -630,7 +630,7 @@ class Deploy
 		}
 
 		if (!empty($past_deployments)) {
-			if ($this->local_shell->inputPrompt('Delete old directories? (yes/no): ', 'no') == 'yes') {
+			if ($this->local_shell->inputPrompt('Delete old directories? (y/n) [n]: ', 'n', false, array('y', 'n')) == 'y') {
 				$this->deletePastDeployments($past_deployments);
             }
 		} else {

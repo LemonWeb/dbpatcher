@@ -186,7 +186,7 @@ class Database
      */
     public function rollback()
     {
-        $this->logger->log('Database rollback: '. implode(', ', array_keys($this->sql_revert_patches)), LOG_DEBUG);
+        $this->logger->log('Database rollback: '. implode(', ', $this->sql_revert_patches), LOG_DEBUG);
 
         if (!count($this->sql_revert_patches)) {
             return;
@@ -199,32 +199,32 @@ class Database
                 SELECT id, down_sql
                 FROM db_patches
                 WHERE patch_timestamp = '". $this->driver->escape($timestamp) ."'
-                  AND down_sql != ''
                 ORDER BY applied_at DESC, id DESC;
             ");
 
-            if (!$patch_info = $this->driver->fetchAssoc($result))
-            {
+            if (!$patch_info = $this->driver->fetchAssoc($result)) {
                 return;
             }
 
-            // mark the patch as being reverted
-            $this->driver->query("
-                UPDATE db_patches
-                SET reverted_at = '". $this->driver->escape($this->timestamp) ."'
-                WHERE patch_timestamp = '". $this->driver->escape($timestamp) ."';
-            ");
+            if ($patch_info['down_sql'] != '') {
+                // mark the patch as being reverted
+                $this->driver->query("
+                    UPDATE db_patches
+                    SET reverted_at = '". $this->driver->escape($this->timestamp) ."'
+                    WHERE patch_timestamp = '". $this->driver->escape($timestamp) ."';
+                ");
 
-            // revert the patch
-            $this->driver->startTransaction();
+                // revert the patch
+                $this->driver->startTransaction();
 
-            $this->driver->query($patch_info['down_sql']);
+                $this->driver->query($patch_info['down_sql']);
 
-            if ($error = $this->driver->getLastError()) {
-                throw new DatabaseException($error, 1);
+                if ($error = $this->driver->getLastError()) {
+                    throw new DatabaseException($error, 1);
+                }
+
+                $this->driver->doCommit();
             }
-
-            $this->driver->doCommit();
 
             // remove the patch from the db_patches table
             $this->driver->query("

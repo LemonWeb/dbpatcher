@@ -304,7 +304,7 @@ class Manager implements DatabaseManagerInterface
         // collect and verify the database login information so the db_patches table can be checked
         $this->getDatabaseLogin(true);
 
-        // make a list of all available patches
+        // make a list of all available patchfiles in de project
         $available_patches = $this->findSQLFiles($action);
 
         $patches_to_apply = array();
@@ -312,87 +312,82 @@ class Manager implements DatabaseManagerInterface
         $patches_to_register_as_done = array();
 
         if ($this->patches_table_exists = $this->checkIfPatchTableExists()) {
+            // remove db_patches patch itself, the table already exists
+            if (isset($available_patches['19700101000000'])) {
+                unset($available_patches['19700101000000']);
+            }
+
             // get the list of all performed patches from the database
-            $patches = $this->findPerformedSQLPatches();
-
-            // list the patches that have not yet been applied
-            $new_patches = array_diff_key($available_patches, $patches);
-
-            // list the patches that have been removed from the codetree and may need to be reverted
-            $removed_patches = array_diff_key($patches, $available_patches);
+            $performed_patches = $this->findPerformedSQLPatches();
 
             if (Deploy::UPDATE == $action) {
-                $patches_to_apply = $new_patches;
-                $patches_to_revert = array_keys($removed_patches);
+                // list the patches that have not yet been applied
+                $patches_to_apply = array_diff_key($available_patches, $performed_patches);
+
+                // list the patchfiles that have been removed from the project and may need to be reverted
+                $patches_to_revert = array_diff_key($performed_patches, $available_patches);
             } elseif (Deploy::ROLLBACK == $action) {
                 // find the patches that have been performed on the previous deploy
-
-                foreach ($patches as $datetime => $applied_at) {
-                    if (($timestamp = strtotime($applied_at)) && $timestamp >= $this->previous_timestamp && $timestamp <= $this->last_timestamp) {
-                        $patches_to_revert[] = $datetime;
+                foreach ($performed_patches as $datetime => $applied_at) {
+                    if (($timestamp = strtotime($applied_at)) && $timestamp > $this->previous_timestamp && $timestamp <= $this->last_timestamp) {
+                        $patches_to_revert[$datetime] = $datetime;
                     }
                 }
             }
-
-            // remove db_patches patch itself, the table already exists
-            if (isset($patches_to_apply['19700101000000'])) {
-                unset($patches_to_apply['19700101000000']);
-            }
         } else {
-            // add the db_patches patch
+            // always add the db_patches patch
             $patches_to_apply = array('19700101000000' => $available_patches['19700101000000']);
 
             unset($available_patches['19700101000000']);
 
             if (Deploy::UPDATE == $action) {
-                // offer to execute all other patches aswell, or only register them as done
-
-
                 // make a list of all patches that could be considered as already applied
-                foreach ($available_patches as $timestamp => $filename) {
-                    $patches_to_register_as_done[$timestamp] = $filename;
-                }
+                $patches_to_register_as_done = $available_patches;
             }
         }
 
         ksort($patches_to_apply, SORT_NUMERIC);
-        krsort($patches_to_revert, SORT_NUMERIC);
+        rsort($patches_to_revert, SORT_NUMERIC);
         ksort($patches_to_register_as_done, SORT_NUMERIC);
 
         // check if the files all contain SQL patches and filter out inactive patches
-        $patches_to_apply = array_keys(Helper::checkFiles($this->basedir, $patches_to_apply));
+        $patches_to_apply = array_intersect($patches_to_apply, array_keys(Helper::checkFiles($this->basedir, $patches_to_apply)));
 
         if (!empty($patches_to_revert)) {
-            $action_to_perform = 'Database patches to revert';
-            $question_to_ask = 'Revert database patches?';
+            $this->logger->log('Database patches to revert ('. count($patches_to_revert) .'): '. PHP_EOL . implode(PHP_EOL, $patches_to_revert));
 
-            $this->logger->log("$action_to_perform: ". PHP_EOL . implode(PHP_EOL, $patches_to_revert));
+            $choice = $this->local_shell->inputPrompt('Revert ? (y/n) [n]: ', 'n', false, array('y', 'n'));
 
-            if ($this->local_shell->inputPrompt("$question_to_ask (yes/no): ", 'no') == 'yes') {
-                $this->patches_to_revert = $patches_to_revert;
+            if ('y' == $choice) {
+                $this->patches_to_revert += $patches_to_revert;
             }
         }
 
         if (!empty($patches_to_apply)) {
-            $action_to_perform = 'Database patches to apply';
-            $question_to_ask = 'Apply database patches?';
+            $this->logger->log('Database patches to apply ('. count($patches_to_apply) .'): '. PHP_EOL . implode(PHP_EOL, $patches_to_apply));
 
-            $this->logger->log("$action_to_perform: ". PHP_EOL . implode(PHP_EOL, $patches_to_apply));
+            $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [i]: ', 'i', false, array('a', 'r', 'i'));
 
-            if ($this->local_shell->inputPrompt("$question_to_ask (yes/no): ", 'no') == 'yes') {
-                $this->patches_to_apply = $patches_to_apply;
+            if ('a' == $choice) {
+                $this->patches_to_apply += $patches_to_apply;
+            } elseif ('r' == $choice) {
+                $this->patches_to_register_as_done += $patches_to_apply;
             }
         }
 
         if (!empty($patches_to_register_as_done)) {
             $this->logger->log('Other patches found ('. count($patches_to_register_as_done) .'): '. PHP_EOL . implode(PHP_EOL, $patches_to_register_as_done));
 
-            if ($this->local_shell->inputPrompt('Register them as done? (yes/no): ', 'no') == 'yes') {
-                $this->patches_to_register_as_done = $patches_to_register_as_done;
+            $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [i]: ', 'i', false, array('a', 'r', 'i'));
+
+            if ('a' == $choice) {
+                $this->patches_to_apply += $patches_to_register_as_done;
+            } elseif ('r' == $choice) {
+                $this->patches_to_register_as_done += $patches_to_register_as_done;
             }
         }
 
-        if (empty($patches_to_apply) && empty($patches_to_register_as_done) && empty($patches_to_revert)) {
+        if (empty($this->patches_to_apply) && empty($this->patches_to_register_as_done) && empty($this->patches_to_revert)) {
             return;
         }
 
@@ -431,10 +426,10 @@ class Manager implements DatabaseManagerInterface
 
             if ($applied_at == 'NULL') {
                 // this patch crashed while being applied
-                $crashed_patches[] = $patch_name;
+                $crashed_patches[$patch_timestamp] = $patch_name;
             } elseif ($reverted_at != 'NULL') {
                 // this patch crashed while being reverted
-                $reverted_patches[] = $patch_name;
+                $reverted_patches[$patch_timestamp] = $patch_name;
             } else {
                 // this patch was succesfully applied
                 $applied_patches[$patch_timestamp] = $applied_at;
@@ -492,7 +487,7 @@ class Manager implements DatabaseManagerInterface
     {
         $this->logger->log('updateDatabase', LOG_DEBUG);
 
-        if (!$this->database_checked || (empty($this->patches_to_apply) && empty($this->patches_to_revert))) {
+        if (!$this->database_checked || (empty($this->patches_to_apply) && empty($this->patches_to_revert) && empty($this->patches_to_register_as_done))) {
             return;
         }
 
@@ -542,7 +537,7 @@ class Manager implements DatabaseManagerInterface
     {
         $this->logger->log('rollbackDatabase', LOG_DEBUG);
 
-        if (!$this->database_checked || (empty($this->patches_to_apply) && empty($this->patches_to_revert))) {
+        if (!$this->database_checked) {
             return;
         }
 
@@ -581,9 +576,7 @@ class Manager implements DatabaseManagerInterface
 
         // if the database credentials are known, no need to ask for them again
         if ($database_name === null) {
-            $update_database = $this->local_shell->inputPrompt('Check if database needs updates? (yes/no): ', 'no');
-
-            if ($update_database != 'yes') {
+            if ($this->local_shell->inputPrompt('Check if database needs updates? (y/n) [n]: ', 'n', false, array('y', 'n')) != 'y') {
                 $database_name = 'skip';
             }
         }
@@ -592,9 +585,7 @@ class Manager implements DatabaseManagerInterface
             if ($this->database_name !== null) {
                 // we're not updating anything yet, so no need to ask questions
                 if (!$pre_check) {
-                    $update_database = $this->local_shell->inputPrompt('Update database '. $this->database_name .'? (yes/no): ', 'no');
-
-                    if ($update_database != 'yes') {
+                    if ($this->local_shell->inputPrompt('Update database '. $this->database_name .'? (y/n) [n]: ', 'n', false, array('y', 'n')) != 'y') {
                         $database_name = 'skip';
                     }
                 }
@@ -603,7 +594,7 @@ class Manager implements DatabaseManagerInterface
             }
         }
 
-        if ($database_name == '' || $database_name == 'no') {
+        if ($database_name == '' || $database_name == 'n') {
             $database_name = 'skip';
         }
 

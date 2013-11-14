@@ -13,9 +13,10 @@ class LocalShell implements LocalShellInterface
      * @param string $message
      * @param string $default
      * @param boolean $isPassword
+     * @param array $aChoices
      * @return string
      */
-    public function inputPrompt($message, $default = '', $isPassword = false)
+    public function inputPrompt($message, $default = '', $isPassword = false, $aChoices = null)
     {
         fwrite(STDOUT, $message);
 
@@ -27,7 +28,12 @@ class LocalShell implements LocalShellInterface
         }
 
         if ($input == '') {
-            return $default;
+            $input = $default;
+        }
+
+        // if possible choices are specified but not met, re-ask the question
+        if (null !== $aChoices && !in_array($input, $aChoices)) {
+            return $this->inputPrompt($message, $default, $isPassword, $aChoices);
         }
 
         return $input;
