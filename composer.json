@@ -1,12 +1,12 @@
 {
-    "name": "bugbyte/deployer",
+    "name": "lemonweb/deployer",
     "authors": [
         {
             "name": "Bert-Jan de Lange",
-            "email": "bert-jan@bugbyte.nl"
+            "email": "bertjan@lemonweb.nl"
         }
     ],
-    "description": "A website deployment tool",
+    "description": "A website deployment tool with database versioning",
     "license": "MIT",
     "autoload": {
         "psr-0": {
@@ -15,7 +15,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "1.0-dev"
+            "dev-master": "2.0-dev"
         }
     }
 }
