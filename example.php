@@ -1,8 +1,9 @@
 <?php
 
-require_once 'lib/base/BaseDeploy.class.php';
-require_once 'lib/Deploy.class.php';
-require_once 'lib/exceptions/DeployException.class.php';
+require __DIR__ .'/vendor/autoload.php';
+
+use Bugbyte\Deployer\Deploy;
+
 
 $deploy = new Deploy(array(
 	'project_name' => 'project',
@@ -20,14 +21,18 @@ $deploy = new Deploy(array(
 		'web/.htaccess',
 		'config/database.php'
 	),
+    'data_dirs' => array(
+        'web/uploads',
+    ),
 	'database_dirs' => array('data/sql-updates'),
 	'database_host' => 'localhost',
+	'database_port' => 3306,
 	'database_name' => 'database',
-	'database_user' => 'root', // if you can omit these you will be asked for them if they are needed
+	'database_user' => 'root', // if you omit these you will be asked for them if they are needed
 	'database_pass' => 'p@ssw0rd',
 	'target' => 'prod',
-	'database_patcher'	=> 'lib/deployer/database-patcher.php',
-	'datadir_patcher'	=> 'lib/deployer/datadir-patcher.php',
+	'database_patcher' => 'vendor/bugbyte/deployer/bin/database-patcher.php',
+	'datadir_patcher' => 'vendor/bugbyte/deployer/bin/datadir-patcher.php',
 
     // APC cache handling (see apc/frontcontroller_example.php for details)
     'apc_deploy_version_template' => 'lib/deployer/apc/deploy_version_template.php',
@@ -46,5 +51,5 @@ switch($_SERVER['argv'][1]) {
 		$deploy->cleanup();
 		break;
 	default:
-		echo 'Usage: php deploy.php [deploy|rollback|cleanup]'. PHP_EOL;
+		echo 'Usage: php example.php [deploy|rollback|cleanup]'. PHP_EOL;
 }

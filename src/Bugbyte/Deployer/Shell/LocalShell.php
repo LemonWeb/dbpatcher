@@ -1,0 +1,86 @@
+<?php
+
+namespace Bugbyte\Deployer\Shell;
+
+use Bugbyte\Deployer\Interfaces\LocalShellInterface;
+
+
+class LocalShell implements LocalShellInterface
+{
+    /**
+     * Asks the user for input
+     *
+     * @param string $message
+     * @param string $default
+     * @param boolean $isPassword
+     * @param array $aChoices
+     * @return string
+     */
+    public function inputPrompt($message, $default = '', $isPassword = false, $aChoices = null)
+    {
+        fwrite(STDOUT, $message);
+
+        if (!$isPassword) {
+            $input = trim(fgets(STDIN));
+        } else {
+            $input = $this->getPassword(false);
+            echo PHP_EOL;
+        }
+
+        if ($input == '') {
+            $input = $default;
+        }
+
+        // if possible choices are specified but not met, re-ask the question
+        if (null !== $aChoices && !in_array($input, $aChoices)) {
+            return $this->inputPrompt($message, $default, $isPassword, $aChoices);
+        }
+
+        return $input;
+    }
+
+    /**
+     * Get a password from the shell.
+     *
+     * This function works on *nix systems only and requires shell_exec and stty.
+     *
+     * @author http://www.dasprids.de/blog/2008/08/22/getting-a-password-hidden-from-stdin-with-php-cli
+     * @param  boolean $stars Wether or not to output stars for given characters
+     * @return string
+     */
+    protected function getPassword($stars = false)
+    {
+        // Get current style
+        $oldStyle = shell_exec('stty -g');
+
+        if ($stars === false) {
+            shell_exec('stty -echo');
+            $password = rtrim(fgets(STDIN), "\n");
+        } else {
+            shell_exec('stty -icanon -echo min 1 time 0');
+
+            $password = '';
+            while (true) {
+                $char = fgetc(STDIN);
+
+                if ($char === "\n") {
+                    break;
+                } elseif (ord($char) === 127) {
+                    if (strlen($password) > 0) {
+                        fwrite(STDOUT, "\x08 \x08");
+                        $password = substr($password, 0, -1);
+                    }
+                } else {
+                    fwrite(STDOUT, "*");
+                    $password .= $char;
+                }
+            }
+        }
+
+        // Reset old style
+        shell_exec('stty ' . $oldStyle);
+
+        // Return the password
+        return $password;
+    }
+}
