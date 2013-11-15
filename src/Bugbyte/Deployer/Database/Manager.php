@@ -746,11 +746,11 @@ class Manager implements DatabaseManagerInterface
                 $count_files = count($update_files);
 
                 if (Deploy::UPDATE == $action) {
-                    ksort($update_files, \SORT_NUMERIC);
+                    ksort($update_files, SORT_NUMERIC);
 
                     $this->logger->log($count_files .' SQL update patch'. ($count_files > 1 ? 'es' : '') .':');
                 } elseif (Deploy::ROLLBACK == $action) {
-                    krsort($update_files, \SORT_NUMERIC);
+                    krsort($update_files, SORT_NUMERIC);
 
                     $this->logger->log($count_files .' SQL rollback patch'. ($count_files > 1 ? 'es' : '') .':');
                 }
