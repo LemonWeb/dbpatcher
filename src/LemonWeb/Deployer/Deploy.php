@@ -1,16 +1,16 @@
 <?php
 
-namespace Bugbyte\Deployer;
+namespace LemonWeb\Deployer;
 
-use Bugbyte\Deployer\Exceptions\DeployException;
-use Bugbyte\Deployer\Interfaces\DatabaseManagerInterface;
-use Bugbyte\Deployer\Interfaces\LocalShellInterface;
-use Bugbyte\Deployer\Interfaces\LoggerInterface;
-use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
-use Bugbyte\Deployer\Shell\LocalShell;
-use Bugbyte\Deployer\Shell\RemoteShell;
-use Bugbyte\Deployer\Database\Manager as DatabaseManager;
-use Bugbyte\Deployer\Logger\Logger;
+use LemonWeb\Deployer\Exceptions\DeployException;
+use LemonWeb\Deployer\Interfaces\DatabaseManagerInterface;
+use LemonWeb\Deployer\Interfaces\LocalShellInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Interfaces\RemoteShellInterface;
+use LemonWeb\Deployer\Shell\LocalShell;
+use LemonWeb\Deployer\Shell\RemoteShell;
+use LemonWeb\Deployer\Database\Manager as DatabaseManager;
+use LemonWeb\Deployer\Logger\Logger;
 
 
 /**

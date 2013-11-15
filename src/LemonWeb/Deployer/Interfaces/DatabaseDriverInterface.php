@@ -1,6 +1,6 @@
 <?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace Bugbyte\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Interfaces;
 
 
 interface DatabaseDriverInterface
@@ -15,7 +15,7 @@ interface DatabaseDriverInterface
     /**
      * Returns an instance of the database connector.
      *
-     * @param \Bugbyte\Deployer\Interfaces\LoggerInterface $logger
+     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
      * @param string $hostname
      * @param integer $port
      * @param string $username

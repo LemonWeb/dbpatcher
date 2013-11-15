@@ -1,13 +1,13 @@
 <?php
 
-namespace Bugbyte\Deployer\Patchers;
+namespace LemonWeb\Deployer\Patchers;
 
-use Bugbyte\Deployer\Database\Helper as DatabaseHelper;
-use Bugbyte\Deployer\Exceptions\DatabaseException;
-use Bugbyte\Deployer\Exceptions\DeployException;
-use Bugbyte\Deployer\Interfaces\DatabaseDriverInterface;
-use Bugbyte\Deployer\Interfaces\LoggerInterface;
-use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
+use LemonWeb\Deployer\Database\Helper as DatabaseHelper;
+use LemonWeb\Deployer\Exceptions\DatabaseException;
+use LemonWeb\Deployer\Exceptions\DeployException;
+use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
 
 /**
  * Automatically determines which PHP extension to use and deploys database patches.
@@ -15,7 +15,7 @@ use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
 class Database
 {
     /**
-     * @var \Bugbyte\Deployer\Interfaces\LoggerInterface
+     * @var \LemonWeb\Deployer\Interfaces\LoggerInterface
      */
     protected $logger;
 
@@ -50,7 +50,7 @@ class Database
     protected $driver = null;
 
     /**
-     * @param \Bugbyte\Deployer\Interfaces\LoggerInterface $logger
+     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
      * @param string $hostname
      * @param int $port
      * @param string $username
@@ -58,7 +58,7 @@ class Database
      * @param string $database The name of the database
      * @param string $timestamp The current timestamp (to prevent issues with date-differences between the executing server and the database server)
      * @param string $rootpath The root path of the project
-     * @throws \Bugbyte\Deployer\Exceptions\DeployException
+     * @throws \LemonWeb\Deployer\Exceptions\DeployException
      */
     public function __construct(LoggerInterface $logger, $hostname, $port, $username, $password, $database, $timestamp, $rootpath)
     {
@@ -69,7 +69,7 @@ class Database
 
         // find a usable driver
         foreach (array('Pdo', 'Mysqli'/*, 'Mysql'*/) as $drivername) {
-            $classname = 'Bugbyte\Deployer\Database\Drivers\\'. $drivername;
+            $classname = 'LemonWeb\Deployer\Database\Drivers\\'. $drivername;
 
             if (!class_exists($classname))
             {

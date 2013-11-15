@@ -1,5 +1,5 @@
 <?php
 
-namespace Bugbyte\Deployer\Exceptions;
+namespace LemonWeb\Deployer\Exceptions;
 
 class DatabaseException extends \Exception {}

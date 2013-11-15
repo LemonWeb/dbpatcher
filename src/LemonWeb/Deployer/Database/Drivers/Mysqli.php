@@ -1,39 +1,34 @@
 <?php /* Copyright � LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace Bugbyte\Deployer\Database\Drivers;
+namespace LemonWeb\Deployer\Database\Drivers;
 
-use Bugbyte\Deployer\Interfaces\DatabaseDriverInterface;
+use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
 
 /**
- * Database driver which uses PHP's PDO extension.
+ * Database driver which uses PHP's MySQLi extension.
  *
- * @method \PDO get_connection()
- * @property \PDO $connection
+ * @method \mysqli get_connection()
+ * @property \mysqli $connection
  */
-class Pdo extends BaseDriver implements DatabaseDriverInterface
+class Mysqli extends BaseDriver implements DatabaseDriverInterface
 {
     /**
-     * Checks if the current PHP install has the PDO extension.
+     * Checks if the current PHP install has the MySQLi extension.
      *
      * @return bool
      */
     public function checkExtension()
     {
-        return class_exists('\PDO');
+        return class_exists('\mysqli');
     }
 
     /**
-     * @var int
-     */
-    protected $affected_rows = 0;
-
-    /**
-     *	Sets the variables needed for the connection
+     * Sets the variables needed for the connection
      *
-     *	@param string $hostname
-     *	@param integer $port
-     *	@param string $username
-     *	@param string $password
+     * @param string $hostname
+     * @param integer $port
+     * @param string $username
+     * @param string $password
      */
     protected function set_connection($hostname, $port, $username, $password)
     {
@@ -44,44 +39,29 @@ class Pdo extends BaseDriver implements DatabaseDriverInterface
     }
 
     /**
-     * Establishes the PDO connection and returns the connection
+     * Establishes the MySQL connection and returns the connection
      *
-     * @return \PDO
+     * @return \mysqli
      */
     public function connect()
     {
-        $dsn = 'mysql:host='. $this->hostname;
+        $this->connection = new \mysqli();
+        $this->connection->options(MYSQLI_CLIENT_COMPRESS, true);
+        $this->connection->real_connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
 
         if (null !== $this->charset) {
-            $dsn .= ';charset='. $this->charset;
+            $this->connection->set_charset($this->charset);
         }
-
-        if ($this->database) {
-            $dsn .= ';dbname='. $this->database;
-        }
-
-        if ($this->port) {
-            $dsn .= ';port='. $this->port;
-        }
-
-        $this->connection = new \PDO(
-            $dsn,
-            $this->username,
-            $this->password, array(
-                \PDO::MYSQL_ATTR_COMPRESS => true,
-                \PDO::ATTR_PERSISTENT => false,
-            )
-        );
 
         return $this->connection;
     }
 
     /**
-     * Closes the PDO connection
+     * Closes the MySQL connection
      */
     public function disconnect()
     {
-        $this->connection = null;
+        $this->connection->close();
     }
 
     /**
@@ -92,32 +72,23 @@ class Pdo extends BaseDriver implements DatabaseDriverInterface
      */
     protected function error($query, $error)
     {
-        if (is_array($error)) {
-            $error = print_r($error, true);
-        }
-
         $this->logger->log($error .' ['. $query .']');
 
         $this->last_error = $error;
     }
 
     /**
-     * Executes an SQL query
+     * Executes a MySQL query
      *
      * @param string $query
-     * @return \PDOStatement
+     * @return \mysqli_result
      */
     public function query($query)
     {
         $this->last_error = null;
-        $this->affected_rows = 0;
-
-        $this->logger->log($query, LOG_DEBUG);
 
         if (!($r = $this->connection->query($query))) {
-            $this->error($query, $this->connection->errorInfo());
-        } else {
-            $this->affected_rows = $r->rowCount();
+            $this->error($query, $this->connection->error);
         }
 
         return $r;
@@ -125,15 +96,13 @@ class Pdo extends BaseDriver implements DatabaseDriverInterface
 
     public function escape($var)
     {
-        return preg_replace("#^'(.*)'#", '$1', $this->connection->quote($var));
+        return $this->connection->real_escape_string($var);
     }
 
     public function startTransaction()
     {
-        $this->logger->log('start transaction', LOG_DEBUG);
-
         if ($this->transaction_count == 0) {
-            $this->connection->beginTransaction();
+            $this->connection->autocommit(false);
         }
 
         $this->transaction_count++;
@@ -141,8 +110,6 @@ class Pdo extends BaseDriver implements DatabaseDriverInterface
 
     public function doCommit()
     {
-        $this->logger->log('commit transaction', LOG_DEBUG);
-
         $this->transaction_count--;
 
         //voor de zekerheid
@@ -152,13 +119,12 @@ class Pdo extends BaseDriver implements DatabaseDriverInterface
 
         if ($this->transaction_count == 0) {
             $this->connection->commit();
+            $this->connection->autocommit(true);
         }
     }
 
     public function doRollBack()
     {
-        $this->logger->log('rollback transaction', LOG_DEBUG);
-
         $this->transaction_count--;
 
         //voor de zekerheid
@@ -168,20 +134,21 @@ class Pdo extends BaseDriver implements DatabaseDriverInterface
 
         if ($this->transaction_count == 0) {
             $this->connection->rollback();
+            $this->connection->autocommit(true);
         }
     }
 
     /**
-     * @param \PDOStatement $result
+     * @param \mysqli_result $result
      * @return int
      */
     public function numRows($result)
     {
-        return $result->rowCount();
+        return $result->num_rows;
     }
 
     /**
-     * @param \PDOStatement $result
+     * @param \mysqli_result $result
      * @return array
      */
     public function fetchAssoc($result)
@@ -189,16 +156,16 @@ class Pdo extends BaseDriver implements DatabaseDriverInterface
         if (!$result)
             return $result;
 
-        return $result->fetch(\PDO::FETCH_ASSOC);
+        return $result->fetch_assoc();
     }
 
     public function affectedRows()
     {
-        return $this->affected_rows;
+        return $this->connection->affected_rows;
     }
 
     public function lastInsertId()
     {
-        return $this->connection->lastInsertId();
+        return $this->connection->insert_id;
     }
 }

@@ -1,8 +1,8 @@
 <?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace Bugbyte\Deployer\Database\Drivers;
+namespace LemonWeb\Deployer\Database\Drivers;
 
-use Bugbyte\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface;
 
 /**
  * Shared methods across all database drivers.
@@ -10,7 +10,7 @@ use Bugbyte\Deployer\Interfaces\LoggerInterface;
 abstract class BaseDriver
 {
     /**
-     * @var \Bugbyte\Deployer\Interfaces\LoggerInterface
+     * @var \LemonWeb\Deployer\Interfaces\LoggerInterface
      */
     protected $logger;
 
@@ -62,7 +62,7 @@ abstract class BaseDriver
     /**
      * Returns an instance of the database connector
      *
-     * @param \Bugbyte\Deployer\Interfaces\LoggerInterface $logger
+     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
      * @param string $hostname
      * @param integer $port
      * @param string $username

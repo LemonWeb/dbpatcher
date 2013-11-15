@@ -1,8 +1,8 @@
 <?php
 
-namespace Bugbyte\Deployer\Logger;
+namespace LemonWeb\Deployer\Logger;
 
-use Bugbyte\Deployer\Interfaces\LoggerInterface as LoggerInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface as LoggerInterface;
 
 /**
  * TODO: replace this with a PSR-3 logger

@@ -1,8 +1,8 @@
 <?php
 
-namespace Bugbyte\Deployer\Shell;
+namespace LemonWeb\Deployer\Shell;
 
-use Bugbyte\Deployer\Interfaces\LocalShellInterface;
+use LemonWeb\Deployer\Interfaces\LocalShellInterface;
 
 
 class LocalShell implements LocalShellInterface

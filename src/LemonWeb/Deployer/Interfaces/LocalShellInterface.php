@@ -1,6 +1,6 @@
 <?php
 
-namespace Bugbyte\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Interfaces;
 
 
 interface LocalShellInterface

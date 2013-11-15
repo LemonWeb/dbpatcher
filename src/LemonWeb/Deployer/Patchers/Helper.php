@@ -1,6 +1,6 @@
 <?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace Bugbyte\Deployer\Patchers;
+namespace LemonWeb\Deployer\Patchers;
 
 
 class Helper

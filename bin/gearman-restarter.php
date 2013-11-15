@@ -1,7 +1,7 @@
 <?php
 
-use Bugbyte\Deployer\Exceptions\DeployException;
-use Bugbyte\Deployer\Patchers\Helper;
+use LemonWeb\Deployer\Exceptions\DeployException;
+use LemonWeb\Deployer\Patchers\Helper;
 
 require __DIR__ .'/../../../autoload.php';
 

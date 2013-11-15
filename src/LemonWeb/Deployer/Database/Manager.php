@@ -1,15 +1,15 @@
 <?php
 
-namespace Bugbyte\Deployer\Database;
+namespace LemonWeb\Deployer\Database;
 
-use Bugbyte\Deployer\Deploy;
-use Bugbyte\Deployer\Exceptions\DeployException;
-use Bugbyte\Deployer\Exceptions\DatabaseException;
-use Bugbyte\Deployer\Interfaces\DatabaseManagerInterface;
-use Bugbyte\Deployer\Interfaces\LocalShellInterface;
-use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
-use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
-use Bugbyte\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Deploy;
+use LemonWeb\Deployer\Exceptions\DeployException;
+use LemonWeb\Deployer\Exceptions\DatabaseException;
+use LemonWeb\Deployer\Interfaces\DatabaseManagerInterface;
+use LemonWeb\Deployer\Interfaces\LocalShellInterface;
+use LemonWeb\Deployer\Interfaces\RemoteShellInterface;
+use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface;
 
 
 class Manager implements DatabaseManagerInterface
@@ -264,7 +264,7 @@ class Manager implements DatabaseManagerInterface
     /**
      * Checks for the existence of the table db_patches
      *
-     * @throws \Bugbyte\Deployer\Exceptions\DeployException
+     * @throws \LemonWeb\Deployer\Exceptions\DeployException
      * @return bool
      */
     protected function checkIfPatchTableExists()
@@ -291,7 +291,7 @@ class Manager implements DatabaseManagerInterface
      * Check if the db_patches table exists and compare it to the local patches.
      *
      * @param string $action             update of rollback
-     * @throws \Bugbyte\Deployer\Exceptions\DeployException
+     * @throws \LemonWeb\Deployer\Exceptions\DeployException
      */
     public function check($action)
     {
@@ -397,7 +397,7 @@ class Manager implements DatabaseManagerInterface
     /**
      * Returns all patches that have already been applied, crashed when being applied or crashed while being reverted.
      *
-     * @throws \Bugbyte\Deployer\Exceptions\DeployException
+     * @throws \LemonWeb\Deployer\Exceptions\DeployException
      * @return array
      */
     protected function findPerformedSQLPatches()

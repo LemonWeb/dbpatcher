@@ -1,6 +1,6 @@
 <?php
 
-namespace Bugbyte\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Interfaces;
 
 /**
  * All SQL updates must implement this interface.
@@ -11,7 +11,7 @@ namespace Bugbyte\Deployer\Interfaces;
 
 	<?php
 
-    use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
+    use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
 
 
 	class sql_20110104_164856 implements SqlUpdateInterface

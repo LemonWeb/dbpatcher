@@ -10,7 +10,7 @@
     "license": "MIT",
     "autoload": {
         "psr-0": {
-            "Bugbyte": "src/"
+            "LemonWeb": "src/"
         }
     },
     "extra": {

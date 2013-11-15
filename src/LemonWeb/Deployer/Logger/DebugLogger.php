@@ -1,8 +1,8 @@
 <?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace Bugbyte\Deployer\Logger;
+namespace LemonWeb\Deployer\Logger;
 
-use Bugbyte\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface;
 
 
 class DebugLogger implements LoggerInterface

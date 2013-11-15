@@ -1,9 +1,9 @@
 <?php
 
-namespace Bugbyte\Deployer\Shell;
+namespace LemonWeb\Deployer\Shell;
 
-use Bugbyte\Deployer\Interfaces\LoggerInterface;
-use Bugbyte\Deployer\Interfaces\RemoteShellInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Interfaces\RemoteShellInterface;
 
 
 class RemoteShell implements RemoteShellInterface

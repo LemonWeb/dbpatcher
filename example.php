@@ -1,8 +1,9 @@
 <?php
 
+// load Composer's autoloader
 require __DIR__ .'/vendor/autoload.php';
 
-use Bugbyte\Deployer\Deploy;
+use LemonWeb\Deployer\Deploy;
 
 
 $deploy = new Deploy(array(
@@ -13,7 +14,7 @@ $deploy = new Deploy(array(
 	'remote_dir' => '/home/user/project', // this is the same for all remote hosts if you define multiple
 	'remote_user' => 'user', // setup public key access to make it easy for yourself, many connections are made
 	'rsync_excludes' => 'config/rsync_exclude.txt',
-	'data_dirs' => array( // these dirs are stored separate from the other code and replaced by symlinks
+	'data_dirs' => array( // UGC dirs. These dirs are separated from the other code and replaced by symlinks, to become deployment version-independent
 	    'web/uploads',
 	    'logs'
 	),
@@ -21,9 +22,6 @@ $deploy = new Deploy(array(
 		'web/.htaccess',
 		'config/database.php'
 	),
-    'data_dirs' => array(
-        'web/uploads',
-    ),
 	'database_dirs' => array('data/sql-updates'),
 	'database_host' => 'localhost',
 	'database_port' => 3306,

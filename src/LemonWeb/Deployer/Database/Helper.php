@@ -1,9 +1,9 @@
 <?php
 
-namespace Bugbyte\Deployer\Database;
+namespace LemonWeb\Deployer\Database;
 
-use Bugbyte\Deployer\Exceptions\DeployException;
-use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
+use LemonWeb\Deployer\Exceptions\DeployException;
+use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
 
 
 class Helper
@@ -33,7 +33,7 @@ class Helper
      *
      * @param string $path_prefix
      * @param array $filepaths
-     * @throws \Bugbyte\Deployer\Exceptions\DeployException
+     * @throws \LemonWeb\Deployer\Exceptions\DeployException
      * @return SqlUpdateInterface[]                [filepath => sql_update_object, ...]
      */
     public static function checkFiles($path_prefix, $filepaths)

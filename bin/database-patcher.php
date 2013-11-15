@@ -3,15 +3,15 @@
 /**
  * Execute database updates and rollbacks.
  *
- * @see Bugbyte\Deployer\Database\Manager::sendToDatabase()
+ * @see LemonWeb\Deployer\Database\Manager::sendToDatabase()
  */
 
-use Bugbyte\Deployer\Deploy;
-use Bugbyte\Deployer\Exceptions\DeployException;
-use Bugbyte\Deployer\Logger\Logger as Logger;
-use Bugbyte\Deployer\Patchers\Helper;
-use Bugbyte\Deployer\Patchers\Database as DatabasePatcher;
-use Bugbyte\Deployer\Database\Helper as DatabaseHelper;
+use LemonWeb\Deployer\Deploy;
+use LemonWeb\Deployer\Exceptions\DeployException;
+use LemonWeb\Deployer\Logger\Logger as Logger;
+use LemonWeb\Deployer\Patchers\Helper;
+use LemonWeb\Deployer\Patchers\Database as DatabasePatcher;
+use LemonWeb\Deployer\Database\Helper as DatabaseHelper;
 
 require __DIR__ .'/../../../autoload.php';
 

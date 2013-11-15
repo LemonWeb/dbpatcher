@@ -1,6 +1,6 @@
 <?php
 
-use Bugbyte\Deployer\Interfaces\SqlUpdateInterface;
+use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
 
 
 /**

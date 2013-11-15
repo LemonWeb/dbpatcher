@@ -1,29 +1,31 @@
 <?php /* Copyright � LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace Bugbyte\Deployer\Database\Drivers;
+namespace LemonWeb\Deployer\Database\Drivers;
 
-use Bugbyte\Deployer\Interfaces\DatabaseDriverInterface;
+use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
 
 /**
- * Database driver which uses PHP's MySQLi extension.
+ * Database driver which uses PHP's old mysql extension.
  *
- * @method \mysqli get_connection()
- * @property \mysqli $connection
+ * @deprecated Don't use this old extension anymore, please move to MySQLi or PDO !
+ *
+ * @method resource get_connection()
+ * @property resource $connection
  */
-class Mysqli extends BaseDriver implements DatabaseDriverInterface
+class Mysql extends BaseDriver implements DatabaseDriverInterface
 {
     /**
-     * Checks if the current PHP install has the MySQLi extension.
+     * Checks if the current PHP install has the old mysql extension.
      *
      * @return bool
      */
     public function checkExtension()
     {
-        return class_exists('\mysqli');
+        return function_exists('mysql_connect');
     }
 
     /**
-     * Sets the variables needed for the connection
+     * Sets the variables, needed for the connection
      *
      * @param string $hostname
      * @param integer $port
@@ -35,22 +37,31 @@ class Mysqli extends BaseDriver implements DatabaseDriverInterface
         $this->username = $username;
         $this->password = $password;
         $this->hostname = $hostname;
-        $this->port     = $port;
+
+        if ($port) {
+            $this->hostname .= ":$port";
+        }
     }
 
     /**
-     * Establishes the MySQL connection and returns the connection
+     * Establishes the MySQL connection and returns the connection ID
      *
-     * @return \mysqli
+     * @param string $charset
+     * @throws \Exception
+     * @return resource connection
      */
-    public function connect()
+    public function connect($charset = null)
     {
-        $this->connection = new \mysqli();
-        $this->connection->options(MYSQLI_CLIENT_COMPRESS, true);
-        $this->connection->real_connect($this->hostname, $this->username, $this->password, $this->database, $this->port);
+        if (!$this->connection = mysql_connect($this->hostname, $this->username, $this->password, false, MYSQL_CLIENT_COMPRESS)) {
+            throw new \Exception('Kan geen databaseverbinding maken');
+        }
 
-        if (null !== $this->charset) {
-            $this->connection->set_charset($this->charset);
+        if (!mysql_select_db($this->database, $this->connection)) {
+            throw new \Exception(mysql_error());
+        }
+
+        if (null !== $charset) {
+            $this->query("SET NAMES '$charset'");
         }
 
         return $this->connection;
@@ -61,7 +72,7 @@ class Mysqli extends BaseDriver implements DatabaseDriverInterface
      */
     public function disconnect()
     {
-        $this->connection->close();
+        mysql_close($this->connection);
     }
 
     /**
@@ -81,14 +92,14 @@ class Mysqli extends BaseDriver implements DatabaseDriverInterface
      * Executes a MySQL query
      *
      * @param string $query
-     * @return \mysqli_result
+     * @return resource
      */
     public function query($query)
     {
         $this->last_error = null;
 
-        if (!($r = $this->connection->query($query))) {
-            $this->error($query, $this->connection->error);
+        if (!($r = mysql_query($query, $this->connection))) {
+            $this->error($query, mysql_error($this->connection));
         }
 
         return $r;
@@ -96,18 +107,24 @@ class Mysqli extends BaseDriver implements DatabaseDriverInterface
 
     public function escape($var)
     {
-        return $this->connection->real_escape_string($var);
+        return mysql_real_escape_string($var, $this->connection);
     }
 
+    /**
+     * transactie starten
+     */
     public function startTransaction()
     {
         if ($this->transaction_count == 0) {
-            $this->connection->autocommit(false);
+            $this->query('START TRANSACTION;');
         }
 
         $this->transaction_count++;
     }
 
+    /**
+     * transactie committen
+     */
     public function doCommit()
     {
         $this->transaction_count--;
@@ -118,11 +135,13 @@ class Mysqli extends BaseDriver implements DatabaseDriverInterface
         }
 
         if ($this->transaction_count == 0) {
-            $this->connection->commit();
-            $this->connection->autocommit(true);
+            $this->query('COMMIT;');
         }
     }
 
+    /**
+     * transactie rollback
+     */
     public function doRollBack()
     {
         $this->transaction_count--;
@@ -133,39 +152,27 @@ class Mysqli extends BaseDriver implements DatabaseDriverInterface
         }
 
         if ($this->transaction_count == 0) {
-            $this->connection->rollback();
-            $this->connection->autocommit(true);
+            $this->query('ROLLBACK;');
         }
     }
 
-    /**
-     * @param \mysqli_result $result
-     * @return int
-     */
     public function numRows($result)
     {
-        return $result->num_rows;
+        return mysql_num_rows($result);
     }
 
-    /**
-     * @param \mysqli_result $result
-     * @return array
-     */
     public function fetchAssoc($result)
     {
-        if (!$result)
-            return $result;
-
-        return $result->fetch_assoc();
+        return mysql_fetch_assoc($result);
     }
 
     public function affectedRows()
     {
-        return $this->connection->affected_rows;
+        return mysql_affected_rows($this->connection);
     }
 
     public function lastInsertId()
     {
-        return $this->connection->insert_id;
+        return mysql_insert_id($this->connection);
     }
 }
