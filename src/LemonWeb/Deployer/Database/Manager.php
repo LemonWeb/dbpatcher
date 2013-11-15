@@ -347,7 +347,7 @@ class Manager implements DatabaseManagerInterface
         }
 
         ksort($patches_to_apply, SORT_NUMERIC);
-        rsort($patches_to_revert, SORT_NUMERIC);
+        krsort($patches_to_revert, SORT_NUMERIC);
         ksort($patches_to_register_as_done, SORT_NUMERIC);
 
         // check if the files all contain SQL patches and filter out inactive patches
@@ -505,7 +505,7 @@ class Manager implements DatabaseManagerInterface
                 "cd {$remote_dir}/{$target_dir}; ".
                 "php {$this->database_patcher} ".
                     ' --action="rollback" '.
-                    ' --patches="'. implode(',', $this->patches_to_revert) .'"'
+                    ' --patches="'. implode(',', array_keys($this->patches_to_revert)) .'"'
             );
         }
 
@@ -546,7 +546,7 @@ class Manager implements DatabaseManagerInterface
                 "cd {$remote_dir}/{$previous_target_dir}; ".
                 "php {$this->database_patcher} ".
                     '--action=update '.
-                    '--files="'. implode(',', $this->patches_to_apply) .'"'
+                    '--files="'. implode(',', array_keys($this->patches_to_apply)) .'"'
             );
         }
 
