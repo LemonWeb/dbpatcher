@@ -2,7 +2,6 @@
 
 namespace Bugbyte\Deployer;
 
-use Bugbyte\Deployer\Database\Helper;
 use Bugbyte\Deployer\Exceptions\DeployException;
 use Bugbyte\Deployer\Interfaces\DatabaseManagerInterface;
 use Bugbyte\Deployer\Interfaces\LocalShellInterface;
@@ -309,6 +308,10 @@ class Deploy
             $this->database_manager->setDirs($options['database_dirs']);
 
             if (isset($options['database_patcher'])) {
+                if (!file_exists($this->basedir .'/'. $options['database_patcher'])) {
+                    throw new DeployException('Database patcher not found');
+                }
+
                 $this->database_manager->setPatcher($options['database_patcher']);
             }
 
@@ -344,10 +347,18 @@ class Deploy
         }
 
         if (isset($options['datadir_patcher'])) {
+            if (!file_exists($this->basedir .'/'. $options['datadir_patcher'])) {
+                throw new DeployException('Datadir patcher not found');
+            }
+
             $this->datadir_patcher = $options['datadir_patcher'];
         }
 
         if (isset($options['gearman_restarter'])) {
+            if (!file_exists($this->basedir .'/'. $options['gearman_restarter'])) {
+                throw new DeployException('Gearman restarter not found');
+            }
+
             $this->gearman_restarter = $options['gearman_restarter'];
         }
 
