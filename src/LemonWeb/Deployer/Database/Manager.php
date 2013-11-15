@@ -254,7 +254,7 @@ class Manager implements DatabaseManagerInterface
      * @param int $previous_timestamp
      * @param int $last_timestamp
      */
-    public function initialize($current_timestamp, $previous_timestamp, $last_timestamp)
+    public function initialize($current_timestamp, $previous_timestamp = null, $last_timestamp = null)
     {
         $this->current_timestamp = $current_timestamp;
         $this->previous_timestamp = $previous_timestamp;

@@ -209,16 +209,17 @@ class Deploy
 	protected $target_specific_files = array();
 
 	/**
-	 * Settings of Gearman including the names of the worker functions that must be restarted.
+	 * Settings of Gearman servers including the names of the worker functions that must be restarted.
 	 *
 	 * Example:
 	 * 		array(
 	 *			'servers' => array(
-	 *				array('ip' => 'ip address', 'port' => port number)
+	 *				array('ip' => '192.168.0.53', 'port' => 4730),
+     *              ...
 	 * 			),
 	 * 			'workers' => array(
-	 *				'worker1',
-	 *				'worker2'
+	 *				'send_email',
+	 *				'clear_cache'
 	 * 			)
 	 * 		)
 	 *
@@ -269,29 +270,107 @@ class Deploy
 	 */
 	public function __construct(array $options)
 	{
-		$this->project_name	= $options['project_name'];
-		$this->basedir		= $options['basedir'];
-		$this->remote_host	= $options['remote_host'];
-		$this->remote_user	= $options['remote_user'];
-        $this->target		= $options['target'];
-        $this->remote_dir	= $options['remote_dir'] .'/'. $this->target;
-        $this->debug        = isset($options['debug']) ? $options['debug'] : false;
+        // mandatory setting
+        $this->basedir		= $options['basedir'];
 
-        $logfile = isset($options['logfile']) ? $options['logfile'] : null;
+        // merge options with defaults
+        $option = array_merge(array(
+            'debug' => false,
+            'auto_init' => true,
+
+            // remote sync settings
+            'remote_dir' => null,
+            'project_name' => null,
+            'remote_host' => null,
+            'remote_user' => null,
+            'target' => null,
+            'target_specific_files' => array(),
+            'rsync_path' => trim(`which rsync`),
+            'rsync_excludes' => array(),
+            'data_dirs' => array(),
+            'datadir_patcher' => null,
+            'gearman' => null,
+            'gearman_restarter' => null,
+
+            'logfile' => null,
+            'ssh_path' => trim(`which ssh`),
+
+            // database versioning settings
+            'database_dirs' => null,
+            'database_host' => null,
+            'database_name' => null,
+            'database_user' => null,
+            'database_pass' => null,
+            'database_port' => null,
+            'database_patcher' => null,
+
+        ), $options);
+
+        $this->debug        = $options['debug'];
 
         // initialize logger
-        $this->logger = new Logger($logfile, $this->debug);
+        $this->logger       = new Logger($options['logfile'], $this->debug);
 
         // initialize local shell
-        $this->local_shell = new LocalShell();
+        $this->local_shell  = new LocalShell();
 
         // initialize remote shell
-        $ssh_path = isset($options['ssh_path']) ? $options['ssh_path'] : trim(`which ssh`);
+        $this->remote_shell = new RemoteShell($this->logger, $this->remote_user, $options['ssh_path']);
 
-        $this->remote_shell = new RemoteShell($this->logger, $this->remote_user, $ssh_path);
+        // initialize remote sync
+        if (null !== $options['remote_dir']) {
+            $this->remote_dir = $options['remote_dir'] .'/'. $this->target;
+            $this->project_name = $options['project_name'];
+            $this->remote_host = $options['remote_host'];
+            $this->remote_user = $options['remote_user'];
+            $this->target = $options['target'];
+            $this->target_specific_files = $options['target_specific_files'];
+
+            $this->rsync_path = $options['rsync_path'];
+            $this->rsync_excludes = (array) $options['rsync_excludes'];
+            $this->data_dirs = $options['data_dirs'];
+
+            if (null !== $options['datadir_patcher']) {
+                if (!file_exists($this->basedir .'/'. $options['datadir_patcher'])) {
+                    throw new DeployException('Datadir patcher not found');
+                }
+
+                $this->datadir_patcher = $options['datadir_patcher'];
+            }
+
+            $this->gearman = $options['gearman'];
+
+            if (null !== $options['gearman_restarter']) {
+                if (!file_exists($this->basedir .'/'. $options['gearman_restarter'])) {
+                    throw new DeployException('Gearman restarter not found');
+                }
+
+                $this->gearman_restarter = $options['gearman_restarter'];
+            }
+
+            if (isset($options['apc_deploy_version_template']) && isset($options['apc_deploy_version_path']) && isset($options['apc_deploy_setrev_url'])) {
+                $this->apc_deploy_version_template = $options['apc_deploy_version_template'];
+                $this->apc_deploy_version_path = $options['apc_deploy_version_path'];
+
+                if (!(
+                        is_string($options['remote_host']) &&
+                        is_string($options['apc_deploy_setrev_url'])
+                    ) &&
+                    !(
+                        is_array($options['remote_host']) &&
+                        is_array($options['apc_deploy_setrev_url']) &&
+                        count($options['remote_host']) == count($options['apc_deploy_setrev_url'])
+                    )
+                ) {
+                    throw new DeployException('apc_deploy_setrev_url must be similar to remote_host (string or array with the same number of elements)');
+                }
+
+                $this->apc_deploy_setrev_url = $options['apc_deploy_setrev_url'];
+            }
+        }
 
         // initialize database manager
-        if (isset($options['database_dirs'])) {
+        if (null !== $options['database_dirs']) {
             $this->database_manager = new DatabaseManager(
                 $this->logger,
                 $this->local_shell,
@@ -307,7 +386,7 @@ class Deploy
 
             $this->database_manager->setDirs($options['database_dirs']);
 
-            if (isset($options['database_patcher'])) {
+            if (null !== $options['database_patcher']) {
                 if (!file_exists($this->basedir .'/'. $options['database_patcher'])) {
                     throw new DeployException('Database patcher not found');
                 }
@@ -320,84 +399,19 @@ class Deploy
                 isset($options['database_host'])
                     ? $options['database_host']
                     : (is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host),
-                isset($options['database_port'])
-                    ? $options['database_port']
-                    : null
+                $options['database_port']
             );
 
-            if (isset($options['database_name'])) {
-                $this->database_manager->setDatabaseName($options['database_name']);
-            }
-
-            if (isset($options['database_user'])) {
-                $this->database_manager->setUsername($options['database_user']);
-            }
-
-            if (isset($options['database_pass'])) {
-                $this->database_manager->setPassword($options['database_pass']);
-            }
+            $this->database_manager->setDatabaseName($options['database_name']);
+            $this->database_manager->setUsername($options['database_user']);
+            $this->database_manager->setPassword($options['database_pass']);
         }
 
-        if (isset($options['rsync_excludes'])) {
-            $this->rsync_excludes = (array)$options['rsync_excludes'];
-        }
+        $this->auto_init = $options['auto_init'];
 
-        if (isset($options['data_dirs'])) {
-            $this->data_dirs = $options['data_dirs'];
-        }
-
-        if (isset($options['datadir_patcher'])) {
-            if (!file_exists($this->basedir .'/'. $options['datadir_patcher'])) {
-                throw new DeployException('Datadir patcher not found');
-            }
-
-            $this->datadir_patcher = $options['datadir_patcher'];
-        }
-
-        if (isset($options['gearman_restarter'])) {
-            if (!file_exists($this->basedir .'/'. $options['gearman_restarter'])) {
-                throw new DeployException('Gearman restarter not found');
-            }
-
-            $this->gearman_restarter = $options['gearman_restarter'];
-        }
-
-        if (isset($options['auto_init'])) {
-            $this->auto_init = $options['auto_init'];
-        }
-
-        if (isset($options['target_specific_files'])) {
-            $this->target_specific_files = $options['target_specific_files'];
-        }
-
-        if (isset($options['gearman'])) {
-            $this->gearman = $options['gearman'];
-        }
-
-		if (isset($options['apc_deploy_version_template']) && isset($options['apc_deploy_version_path']) && isset($options['apc_deploy_setrev_url'])) {
-			$this->apc_deploy_version_template = $options['apc_deploy_version_template'];
-			$this->apc_deploy_version_path = $options['apc_deploy_version_path'];
-
-			if (!(
-					is_string($options['remote_host']) &&
-					is_string($options['apc_deploy_setrev_url'])
-				) &&
-				!(
-					is_array($options['remote_host']) &&
-					is_array($options['apc_deploy_setrev_url']) &&
-					count($options['remote_host']) == count($options['apc_deploy_setrev_url'])
-				)
-			   ) {
-				throw new DeployException('apc_deploy_setrev_url must be similar to remote_host (string or array with the same number of elements)');
-			}
-
-			$this->apc_deploy_setrev_url = $options['apc_deploy_setrev_url'];
-		}
-
-		$this->rsync_path = isset($options['rsync_path']) ? $options['rsync_path'] : trim(`which rsync`);
-
-		if (!$this->auto_init)
+		if (!$this->auto_init) {
 			return;
+        }
 
 		$this->initialize();
 	}
@@ -409,36 +423,39 @@ class Deploy
 	{
 		$this->logger->log('initialize', LOG_DEBUG);
 
-		// in case of multiple remote hosts use the first
-		$remote_host = is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host;
-
         $this->timestamp = time();
 
-        list($this->previous_timestamp, $this->last_timestamp) = $this->findPastDeploymentTimestamps($remote_host, $this->remote_dir);
+        if (null !== $this->remote_dir) {
+            // in case of multiple remote hosts use the first
+            $remote_host = is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host;
 
-        $this->remote_target_dir = strtr($this->remote_dir_format, array(
-                                                    '%project_name%' => $this->project_name,
-                                                    '%timestamp%' => date($this->remote_dir_timestamp_format, $this->timestamp)
-		));
 
-        if ($this->previous_timestamp) {
-			$this->previous_remote_target_dir = strtr($this->remote_dir_format, array(
-                                                    '%project_name%' => $this->project_name,
-                                                    '%timestamp%' => date($this->remote_dir_timestamp_format, $this->previous_timestamp)
+            list($this->previous_timestamp, $this->last_timestamp) = $this->findPastDeploymentTimestamps($remote_host, $this->remote_dir);
+
+            $this->remote_target_dir = strtr($this->remote_dir_format, array(
+                                                        '%project_name%' => $this->project_name,
+                                                        '%timestamp%' => date($this->remote_dir_timestamp_format, $this->timestamp)
             ));
-		}
 
-		if ($this->last_timestamp) {
-			$this->last_remote_target_dir = strtr($this->remote_dir_format, array(
-                                                    '%project_name%' => $this->project_name,
-                                                    '%timestamp%' => date($this->remote_dir_timestamp_format, $this->last_timestamp)
-			));
-		}
+            if ($this->previous_timestamp) {
+                $this->previous_remote_target_dir = strtr($this->remote_dir_format, array(
+                                                        '%project_name%' => $this->project_name,
+                                                        '%timestamp%' => date($this->remote_dir_timestamp_format, $this->previous_timestamp)
+                ));
+            }
+
+            if ($this->last_timestamp) {
+                $this->last_remote_target_dir = strtr($this->remote_dir_format, array(
+                                                        '%project_name%' => $this->project_name,
+                                                        '%timestamp%' => date($this->remote_dir_timestamp_format, $this->last_timestamp)
+                ));
+            }
+        }
 
         if ($this->database_manager) {
-            $this->database_manager->initialize($this->timestamp, $this->previous_timestamp, $this->last_timestamp);
+            $this->database_manager->initialize($this->timestamp);
         }
-	}
+    }
 
 	/**
 	 * Run a dry-run to the remote server to show the changes to be made
@@ -612,7 +629,7 @@ class Deploy
 	}
 
 	/**
-	 * Deletes obsolete deployment directories
+	 * Deletes old, obsolete deployments
 	 */
 	public function cleanup()
 	{
