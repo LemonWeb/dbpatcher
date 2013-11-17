@@ -4,12 +4,14 @@ namespace LemonWeb\Deployer;
 
 use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Interfaces\DatabaseManagerInterface;
+use LemonWeb\Deployer\Interfaces\FileSyncInterface;
 use LemonWeb\Deployer\Interfaces\LocalShellInterface;
 use LemonWeb\Deployer\Interfaces\LoggerInterface;
 use LemonWeb\Deployer\Interfaces\RemoteShellInterface;
 use LemonWeb\Deployer\Shell\LocalShell;
 use LemonWeb\Deployer\Shell\RemoteShell;
 use LemonWeb\Deployer\Database\Manager as DatabaseManager;
+use LemonWeb\Deployer\Filesync\Manager as FileSyncManager;
 use LemonWeb\Deployer\Logger\Logger;
 
 
@@ -34,6 +36,13 @@ class Deploy
      */
     protected $debug = false;
 
+	/**
+	 * The username of the account on the remote server
+	 *
+	 * @var string
+	 */
+	protected $remote_user = null;
+
     /**
      * @var LocalShellInterface
      */
@@ -50,19 +59,9 @@ class Deploy
     protected $database_manager = null;
 
 	/**
-	 * Formatting of the deployment directories
-	 *
-	 * @var string
+	 * @var FileSyncInterface
 	 */
-	protected $remote_dir_format = '%project_name%_%timestamp%';
-
-	/**
-	 * Date format in the name of the deployment directories
-	 * (format parameter of date())
-	 *
-	 * @var string
-	 */
-	protected $remote_dir_timestamp_format = 'Y-m-d_His';
+	protected $filesync_manager = null;
 
 	/**
 	 * The codename of the application
@@ -79,88 +78,11 @@ class Deploy
 	protected $basedir = null;
 
 	/**
-	 * The hostname(s) of the remote server(s)
-	 *
-	 * @var string|array
-	 */
-	protected $remote_host = null;
-
-	/**
-	 * The username of the account on the remote server
-	 *
-	 * @var string
-	 */
-	protected $remote_user = null;
-
-	/**
-	 * The directory of this project on the remote server
-	 *
-	 * @var string
-	 */
-	protected $remote_dir = null;
-
-	/**
-	 * All files to be used as rsync exclude
-	 *
-	 * @var array
-	 */
-	protected $rsync_excludes = array();
-
-	/**
 	 * The general timestamp of this deployment
 	 *
 	 * @var integer
 	 */
 	protected $timestamp = null;
-
-	/**
-	 * The directory where the new deployment will go
-	 *
-	 * @var string
-	 */
-	protected $remote_target_dir = null;
-
-	/**
-	 * The timestamp of the previous deployment
-	 *
-	 * @var integer
-	 */
-	protected $previous_timestamp = null;
-
-	/**
-	 * The timestamp of the latest deployment
-	 *
-	 * @var integer
-	 */
-	protected $last_timestamp = null;
-
-	/**
-	 * The directory of the previous deployment
-	 *
-	 * @var string
-	 */
-	protected $previous_remote_target_dir = null;
-
-	/**
-	 * The directory of the latest deployment
-	 *
-	 * @var string
-	 */
-	protected $last_remote_target_dir = null;
-
-	/**
-	 * Target environment (stage, prod, etc.)
-	 *
-	 * @var string
-	 */
-	protected $target = null;
-
-	/**
-	 * The path of datadir-patcher.php relative to the project root
-	 *
-	 * @var string
-	 */
-	protected $datadir_patcher = null;
 
 	/**
 	 * The path of gearman-restarter.php relative to the project root
@@ -170,43 +92,11 @@ class Deploy
 	protected $gearman_restarter = null;
 
 	/**
-	 * Directories containing User Generated Content
-	 *
-	 * @var array
-	 */
-	protected $data_dirs = null;
-
-	/**
-	 * The name of the directory that will contain all data_dirs
-	 *
-	 * @var string
-	 */
-	protected $data_dir_prefix = 'data';
-
-	/**
 	 * Retrieve past deployment timestamps at instantiation
 	 *
 	 * @var boolean
 	 */
 	protected $auto_init = true;
-
-	/**
-	 * Files to be renamed depending on the target environment.
-	 *
-	 * Example:
-	 * 		'config/databases.yml'
-	 *
-	 * On deployment to stage the stage-specific file is renamed:
-	 * 		config/databases.stage.yml -> config/databases.yml
-	 *
-	 * On deployment to prod:
-	 * 		config/databases.prod.yml => config/databases.yml
-	 *
-     * The files-to-be-renamed will be checked for existence before deployment continues.
-     *
-	 * @var array
-	 */
-	protected $target_specific_files = array();
 
 	/**
 	 * Settings of Gearman servers including the names of the worker functions that must be restarted.
@@ -226,13 +116,6 @@ class Deploy
 	 * @var array
 	 */
 	protected $gearman = array();
-
-	/**
-	 * Cache for listFilesToRename()
-	 *
-	 * @var array
-	 */
-	protected $files_to_rename = array();
 
 	/**
 	 * The project path where the deploy_timestamp.php template is located
@@ -256,11 +139,6 @@ class Deploy
 	protected $apc_deploy_setrev_url = null;
 
 	/**
-	 * Command paths
-	 */
-	protected $rsync_path = 'rsync';
-
-	/**
 	 * Initializes the deployment system.
 	 *
 	 * @param array $options
@@ -271,10 +149,11 @@ class Deploy
 	public function __construct(array $options)
 	{
         // mandatory setting
-        $this->basedir		= $options['basedir'];
+        $this->basedir = $options['basedir'];
+		$this->remote_user = $options['remote_user'];
 
         // merge options with defaults
-        $option = array_merge(array(
+        $options = array_merge(array(
             'debug' => false,
             'auto_init' => true,
 
@@ -282,7 +161,6 @@ class Deploy
             'remote_dir' => null,
             'project_name' => null,
             'remote_host' => null,
-            'remote_user' => null,
             'target' => null,
             'target_specific_files' => array(),
             'rsync_path' => trim(`which rsync`),
@@ -319,24 +197,19 @@ class Deploy
 
         // initialize remote sync
         if (null !== $options['remote_dir']) {
-            $this->remote_dir = $options['remote_dir'] .'/'. $this->target;
-            $this->project_name = $options['project_name'];
-            $this->remote_host = $options['remote_host'];
-            $this->remote_user = $options['remote_user'];
-            $this->target = $options['target'];
-            $this->target_specific_files = $options['target_specific_files'];
-
-            $this->rsync_path = $options['rsync_path'];
-            $this->rsync_excludes = (array) $options['rsync_excludes'];
-            $this->data_dirs = $options['data_dirs'];
-
-            if (null !== $options['datadir_patcher']) {
-                if (!file_exists($this->basedir .'/'. $options['datadir_patcher'])) {
-                    throw new DeployException('Datadir patcher not found');
-                }
-
-                $this->datadir_patcher = $options['datadir_patcher'];
-            }
+	        $this->filesync_manager = new FileSyncManager(
+		        $this->basedir,
+		        $options['project_name'],
+		        $options['remote_host'],
+		        $this->remote_user,
+		        $options['remote_dir'] .'/'. $options['target'],
+		        $options['target'],
+		        $options['target_specific_files'],
+		        $options['rsync_path'],
+		        $options['rsync_excludes'],
+		        $options['data_dirs'],
+		        $options['datadir_patcher']
+	        );
 
             $this->gearman = $options['gearman'];
 
@@ -425,31 +298,8 @@ class Deploy
 
         $this->timestamp = time();
 
-        if (null !== $this->remote_dir) {
-            // in case of multiple remote hosts use the first
-            $remote_host = is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host;
-
-
-            list($this->previous_timestamp, $this->last_timestamp) = $this->findPastDeploymentTimestamps($remote_host, $this->remote_dir);
-
-            $this->remote_target_dir = strtr($this->remote_dir_format, array(
-                                                        '%project_name%' => $this->project_name,
-                                                        '%timestamp%' => date($this->remote_dir_timestamp_format, $this->timestamp)
-            ));
-
-            if ($this->previous_timestamp) {
-                $this->previous_remote_target_dir = strtr($this->remote_dir_format, array(
-                                                        '%project_name%' => $this->project_name,
-                                                        '%timestamp%' => date($this->remote_dir_timestamp_format, $this->previous_timestamp)
-                ));
-            }
-
-            if ($this->last_timestamp) {
-                $this->last_remote_target_dir = strtr($this->remote_dir_format, array(
-                                                        '%project_name%' => $this->project_name,
-                                                        '%timestamp%' => date($this->remote_dir_timestamp_format, $this->last_timestamp)
-                ));
-            }
+        if ($this->filesync_manager) {
+	        $this->filesync_manager->initialize($this->timestamp);
         }
 
         if ($this->database_manager) {
@@ -458,7 +308,7 @@ class Deploy
     }
 
 	/**
-	 * Run a dry-run to the remote server to show the changes to be made
+	 *
 	 *
 	 * @param string $action		 update or rollback
 	 * @throws DeployException
@@ -468,53 +318,19 @@ class Deploy
 	{
 		$this->logger->log('check', LOG_DEBUG);
 
-		if (is_array($this->remote_host)) {
-			foreach ($this->remote_host as $key => $remote_host) {
-				if ($key == 0) {
-				    continue;
-                }
+		if ($this->filesync_manager) {
+			$this->filesync_manager->check($action);
 
-				$this->prepareRemoteDirectory($remote_host, $this->remote_dir);
-			}
-		}
-
-		if (self::UPDATE == $action) {
-			$this->checkFiles(is_array($this->remote_host) ? $this->remote_host[0] : $this->remote_host, $this->remote_dir, $this->last_remote_target_dir);
-        }
-
-        if ($this->database_manager) {
-            $this->database_manager->check($action);
-        }
-
-		if (isset($this->apc_deploy_version_template)) {
-			if (!file_exists($this->apc_deploy_version_template)) {
-				throw new DeployException("{$this->apc_deploy_version_template} does not exist.");
-			}
-		}
-
-		if (self::UPDATE == $action) {
-			if (is_array($this->remote_host)) {
-				foreach ($this->remote_host as $remote_host) {
-					if (!$files = $this->listFilesToRename($remote_host, $this->remote_dir)) {
-					    continue;
-                    }
-
-                    $this->logger->log("Target-specific file renames on $remote_host:");
-
-                    foreach ($files as $filepath => $newpath) {
-                        $this->logger->log("  $newpath => $filepath");
-                    }
-				}
-			} else {
-				if ($files = $this->listFilesToRename($this->remote_host, $this->remote_dir)) {
-					$this->logger->log('Target-specific file renames:');
-
-					foreach ($files as $filepath => $newpath) {
-						$this->logger->log("  $newpath => $filepath");
-                    }
+			if (isset($this->apc_deploy_version_template)) {
+				if (!file_exists($this->apc_deploy_version_template)) {
+					throw new DeployException("{$this->apc_deploy_version_template} does not exist.");
 				}
 			}
 		}
+
+		if ($this->database_manager) {
+	        $this->database_manager->check($action);
+        }
 
 		// als alles goed is gegaan kan er doorgegaan worden met de deployment
 		if (self::UPDATE == $action) {
@@ -541,19 +357,18 @@ class Deploy
         }
 
 		if (is_array($this->remote_host)) {
-			// eerst preDeploy draaien per host, dan alle files synchen
+			// first run preDeploy for each host, then sync all files
 			foreach ($this->remote_host as $remote_host) {
 				$this->preDeploy($remote_host, $this->remote_dir, $this->remote_target_dir);
 				$this->updateFiles($remote_host, $this->remote_dir, $this->remote_target_dir);
 			}
 
-			// na de uploads de database prepareren
+			// after uploads are completed, runs database changes
             if ($this->database_manager) {
                 $this->database_manager->update($this->remote_dir, $this->remote_target_dir);
             }
 
-			// als de files en database klaarstaan kan de nieuwe versie geactiveerd worden
-			// door de symlinks te updaten en postDeploy te draaien
+			// activate the new deployment by updating symlinks and running postDeploy
 			foreach ($this->remote_host as $remote_host) {
 				$this->changeSymlink($remote_host, $this->remote_dir, $this->remote_target_dir);
 				$this->postDeploy($remote_host, $this->remote_dir, $this->remote_target_dir);
@@ -572,6 +387,7 @@ class Deploy
 			$this->clearRemoteCaches($this->remote_host, $this->remote_dir, $this->remote_target_dir);
 		}
 
+		// check for obsolete deployments
 		$this->cleanup();
 	}
 
@@ -701,30 +517,6 @@ class Deploy
 	}
 
 	/**
-	 * Shows the file and directory changes sincs the latest deploy (rsync dry-run to the latest directory on the remote server)
-	 *
-	 * @param string $remote_host
-	 * @param string $remote_dir
-	 * @param string $target_dir
-	 */
-	protected function checkFiles($remote_host, $remote_dir, $target_dir)
-	{
-		$this->logger->log('checkFiles', LOG_DEBUG);
-
-		if (!$target_dir) {
-            $this->logger->log('No deployment history found');
-            return;
-        }
-
-        $this->logger->log('Changed directories and files:', LOG_INFO, true);
-
-        $this->rsyncExec(
-            $this->rsync_path .' -azcO --force --dry-run --delete --progress '. $this->prepareExcludes() .' ./ '.
-                $this->remote_user .'@'. $remote_host .':'. $remote_dir .'/'. $this->last_remote_target_dir, 'Rsync check is mislukt'
-        );
-    }
-
-	/**
 	 * Uploads files to the new directory on the remote server
 	 *
 	 * @param string $remote_host
@@ -849,192 +641,6 @@ class Deploy
 	}
 
 	/**
-	 * Maakt een lijst van de files die specifiek zijn voor een clusterrol of doel en op de doelserver hernoemd moeten worden
-	 *
-	 * @param string $remote_host
-	 * @param string $remote_dir
-	 * @throws DeployException
-	 * @return array
-	 */
-	protected function listFilesToRename($remote_host, $remote_dir)
-	{
-		if (!isset($this->files_to_rename["$remote_host-$remote_dir"])) {
-			$target_files_to_move = array();
-
-			// doelspecifieke files hernoemen
-			if (!empty($this->target_specific_files)) {
-				foreach ($this->target_specific_files as $filepath) {
-					$ext = pathinfo($filepath, PATHINFO_EXTENSION);
-
-					if (isset($target_files_to_move[$filepath])) {
-						$target_filepath = str_replace(".$ext", ".{$this->target}.$ext", $target_files_to_move[$filepath]);
-					} else {
-						$target_filepath = str_replace(".$ext", ".{$this->target}.$ext", $filepath);
-					}
-
-					$target_files_to_move[$filepath] = $target_filepath;
-				}
-			}
-
-			// controleren of alle files bestaan
-			if (!empty($target_files_to_move)) {
-				foreach ($target_files_to_move as $current_filepath) {
-					if (!file_exists($current_filepath)) {
-						throw new DeployException("$current_filepath does not exist");
-					}
-				}
-			}
-
-			$this->files_to_rename["$remote_host-$remote_dir"] = $target_files_to_move;
-		}
-
-		return $this->files_to_rename["$remote_host-$remote_dir"];
-	}
-
-	/**
-	 * Zet het array van rsync excludes om in een lijst rsync parameters
-	 *
-	 * @throws DeployException
-	 * @return string
-	 */
-	protected function prepareExcludes()
-	{
-		$this->logger->log('prepareExcludes', LOG_DEBUG);
-
-		chdir($this->basedir);
-
-		$exclude_param = '';
-
-		if (count($this->rsync_excludes) > 0) {
-			foreach ($this->rsync_excludes as $exclude) {
-				if (!file_exists($exclude)) {
-					throw new DeployException('Rsync exclude file not found: '. $exclude);
-				}
-
-				$exclude_param .= '--exclude-from='. escapeshellarg($exclude) .' ';
-			}
-		}
-
-		if (!empty($this->data_dirs)) {
-			foreach ($this->data_dirs as $data_dir) {
-				$exclude_param .= '--exclude '. escapeshellarg("/$data_dir") .' ';
-			}
-		}
-
-		return $exclude_param;
-	}
-
-	/**
-	 * Bereidt de --copy-dest parameter voor rsync voor als dat van toepassing is
-	 *
-	 * @param string $remote_dir
-	 * @return string
-	 */
-	protected function prepareLinkDest($remote_dir)
-	{
-		$this->logger->log('prepareLinkDest', LOG_DEBUG);
-
-		if ($remote_dir === null) {
-			$remote_dir = $this->remote_dir;
-        }
-
-		$linkdest = '';
-
-		if ($this->last_remote_target_dir) {
-			$linkdest = "--copy-dest=$remote_dir/{$this->last_remote_target_dir}";
-		}
-
-		return $linkdest;
-	}
-
-	/**
-	 * Initializes the remote project and data directories.
-	 *
-	 * @param string $remote_host
-	 * @param string $remote_dir
-	 */
-	protected function prepareRemoteDirectory($remote_host, $remote_dir)
-	{
-		$this->logger->log('Initialize remote directory: '. $remote_host .':'. $remote_dir, LOG_INFO, true);
-
-		$output = array();
-		$return = null;
-		$this->remote_shell->exec($remote_host, "mkdir -p $remote_dir", $output, $return, '', '', LOG_DEBUG);
-
-		if (empty($this->data_dirs)) {
-            return;
-        }
-
-        $data_dirs = count($this->data_dirs) > 1 ? '{'. implode(',', $this->data_dirs) .'}' : implode(',', $this->data_dirs);
-
-        $cmd = "mkdir -v -m 0775 -p $remote_dir/{$this->data_dir_prefix}/$data_dirs";
-
-        $output = array();
-        $return = null;
-        $this->remote_shell->exec($remote_host, $cmd, $output, $return, '', '', LOG_DEBUG);
-	}
-
-	/**
-	 * Returns the timestamps of the second latest and latest deployments
-	 *
-	 * @param string $remote_host
-	 * @param string $remote_dir
-	 * @throws DeployException
-	 * @return array [previous_timestamp, last_timestamp]
-	 */
-	protected function findPastDeploymentTimestamps($remote_host, $remote_dir)
-	{
-		$this->logger->log('findPastDeploymentTimestamps', LOG_DEBUG);
-
-		$this->prepareRemoteDirectory($remote_host, $remote_dir);
-
-		if ($remote_dir === null) {
-			$remote_dir = $this->remote_dir;
-        }
-
-		$dirs = array();
-		$return = null;
-		$this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return, '', '', LOG_DEBUG);
-
-		if (0 !== $return) {
-			throw new DeployException('ssh initialize failed');
-		}
-
-		if (count($dirs)) {
-			$past_deployments = array();
-			$deployment_timestamps = array();
-
-			foreach ($dirs as $dirname) {
-				if (
-					preg_match('/'. preg_quote($this->project_name, '/') .'_(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(\d{2})/', $dirname, $matches) &&
-					($time = mktime($matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1]))
-				) {
-					$past_deployments[] = $dirname;
-					$deployment_timestamps[] = $time;
-				}
-			}
-
-			$count = count($deployment_timestamps);
-
-			if ($count > 0)
-			{
-				$this->logger->log('Past deployments:', LOG_INFO, true);
-				$this->logger->log($past_deployments, LOG_INFO, true);
-
-				sort($deployment_timestamps, SORT_NUMERIC);
-
-				if ($count >= 2) {
-					return array_slice($deployment_timestamps, -2);
-                }
-
-				return array(null, array_pop($deployment_timestamps));
-			}
-		}
-
-		return array(null, null);
-	}
-
-	/**
 	 * Returns all obsolete deployments that can be deleted.
 	 *
 	 * @param string $remote_host
@@ -1116,28 +722,6 @@ class Deploy
 	{
 		foreach ($past_deployments as $past_deployment) {
 			$this->rollbackFiles($past_deployment['remote_host'], $past_deployment['remote_dir'], implode(' ', $past_deployment['dirs']));
-		}
-	}
-
-	/**
-	 * Wrapper for rsync command's
-	 *
-	 * @param string $command
-	 * @param string $error_msg
-	 * @throws DeployException
-	 */
-	protected function rsyncExec($command, $error_msg = 'Rsync has failed')
-	{
-		$this->logger->log('rsyncExec: '. $command, LOG_DEBUG);
-
-		chdir($this->basedir);
-
-		passthru($command, $return);
-
-		$this->logger->log('');
-
-		if (0 !== $return) {
-			throw new DeployException($error_msg);
 		}
 	}
 
