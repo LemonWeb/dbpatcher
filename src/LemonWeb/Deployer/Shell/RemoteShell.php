@@ -29,18 +29,21 @@ class RemoteShell implements RemoteShellInterface
      * Initialize
      *
      * @param LoggerInterface $logger
-     * @param string $remote_user
-     * @param string $ssh_path
+     * @param array $options
      */
-    public function __construct(LoggerInterface $logger, $remote_user, $ssh_path)
+    public function __construct(LoggerInterface $logger, array $options)
     {
+        $options = array_merge(array(
+            'ssh_path' => trim(`which ssh`)
+        ), $options);
+
         $this->logger = $logger;
-        $this->remote_user = $remote_user;
-        $this->ssh_path = $ssh_path;
+        $this->remote_user = $options['remote_user'];
+        $this->ssh_path = $options['ssh_path'];
     }
 
     /**
-     * Wrapper for SSH command's
+     * Wrapper for SSH commands
      *
      * @param string $remote_host
      * @param string $command

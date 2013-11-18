@@ -161,16 +161,28 @@ class Manager implements DatabaseManagerInterface
      * @param LoggerInterface $logger
      * @param LocalShellInterface $local_shell
      * @param RemoteShellInterface $remote_shell
-     * @param string $basedir
+     * @param array $options
      * @param string $control_host
      * @param bool $debug
      */
-    public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, $basedir, $control_host, $debug = false)
+    public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, array $options, $control_host, $debug = false)
     {
+        $options = array_merge(array(
+            // database versioning settings
+            'database_dirs' => null,
+            'database_host' => null,
+            'database_name' => null,
+            'database_user' => null,
+            'database_pass' => null,
+            'database_port' => null,
+            'database_patcher' => null,
+        ), $options);
+
         $this->logger = $logger;
         $this->local_shell = $local_shell;
         $this->remote_shell = $remote_shell;
-        $this->basedir = $basedir;
+
+        $this->basedir = $options['basedir'];
         $this->control_host = $control_host;
         $this->debug = $debug;
 

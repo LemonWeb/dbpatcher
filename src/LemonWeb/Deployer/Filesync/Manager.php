@@ -5,16 +5,37 @@ namespace LemonWeb\Deployer\Filesync;
 use LemonWeb\Deployer\Deploy;
 use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Interfaces\FileSyncInterface;
+use LemonWeb\Deployer\Interfaces\LoggerInterface;
 
 
 class Manager implements FileSyncInterface
 {
-	/**
+    /**
+     * @var LoggerInterface
+     */
+    protected $logger = null;
+
+    /**
 	 * The root directory of the project
 	 *
 	 * @var string
 	 */
 	protected $basedir = null;
+
+    /**
+     * Formatting of the deployment directories
+     *
+     * @var string
+     */
+    protected $remote_dir_format = '%project_name%_%timestamp%';
+
+    /**
+     * Date format in the name of the deployment directories
+     * (format parameter of date())
+     *
+     * @var string
+     */
+    protected $remote_dir_timestamp_format = 'Y-m-d_His';
 
 	/**
 	 * The directory of this project on the remote server
@@ -22,13 +43,6 @@ class Manager implements FileSyncInterface
 	 * @var string
 	 */
 	protected $remote_dir = null;
-
-	/**
-	 * All files to be used as rsync exclude
-	 *
-	 * @var array
-	 */
-	protected $rsync_excludes = array();
 
 	/**
 	 * The hostname(s) of the remote server(s)
@@ -123,6 +137,13 @@ class Manager implements FileSyncInterface
 	 */
 	protected $rsync_path = 'rsync';
 
+    /**
+     * All files to be used as rsync exclude
+     *
+     * @var array
+     */
+    protected $rsync_excludes = array();
+
 	/**
 	 * The timestamp of the previous deployment
 	 *
@@ -137,54 +158,46 @@ class Manager implements FileSyncInterface
 	 */
 	protected $last_timestamp = null;
 
-	/**
-	 * Formatting of the deployment directories
-	 *
-	 * @var string
-	 */
-	protected $remote_dir_format = '%project_name%_%timestamp%';
-
-	/**
-	 * Date format in the name of the deployment directories
-	 * (format parameter of date())
-	 *
-	 * @var string
-	 */
-	protected $remote_dir_timestamp_format = 'Y-m-d_His';
-
-	/**
-	 * @param string $basedir
-	 * @param string $project_name
-	 * @param string $remote_host
-	 * @param string $remote_user
-	 * @param string $remote_dir
-	 * @param string $target                'prod', 'stage'
-	 * @param array $target_specific_files
-	 * @param string $rsync_path            '/usr/local/bin/rsync'
-	 * @param array $rsync_excludes
-	 * @param array $data_dirs
-	 * @param string $datadir_patcher       'vendor/lemonweb/deployer/bin/datadir-patcher.php'
-	 * @throws \LemonWeb\Deployer\Exceptions\DeployException
-	 */
-	public function __construct($basedir, $project_name, $remote_host, $remote_user, $remote_dir, $target, $target_specific_files, $rsync_path, array $rsync_excludes, array $data_dirs, $datadir_patcher)
+    /**
+     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
+     * @param array $options
+     * @throws \LemonWeb\Deployer\Exceptions\DeployException
+     */
+	public function __construct(LoggerInterface $logger, array $options)
 	{
-		$this->basedir = $basedir;
-		$this->remote_dir = $remote_dir .'/'. $target;
-		$this->project_name = $project_name;
-		$this->remote_host = $remote_host;
-		$this->remote_user = $remote_user;
-		$this->target = $target;
-		$this->target_specific_files = $target_specific_files;
+        $options = array_merge(array(
+            // remote sync settings
+            'remote_dir' => null,
+            'project_name' => null,
+            'remote_host' => null,
+            'target' => null,
+            'target_specific_files' => array(),
+            'rsync_path' => trim(`which rsync`),
+            'rsync_excludes' => array(),
+            'data_dirs' => array(),
+            'datadir_patcher' => null,
+            'gearman' => null,
+            'gearman_restarter' => null,
+        ), $options);
 
-		$this->rsync_path = $rsync_path;
-		$this->rsync_excludes = (array) $rsync_excludes;
-		$this->data_dirs = (array) $data_dirs;
+        $this->logger = $logger;
+		$this->basedir = $options['basedir'];
+		$this->remote_dir = $options['remote_dir'] .'/'. $options['target'];
+		$this->project_name = $options['project_name'];
+		$this->remote_host = $options['remote_host'];
+		$this->remote_user = $options['remote_user'];
+		$this->target = $options['target'];
+		$this->target_specific_files = $options['target_specific_files'];
 
-		if (!file_exists($this->basedir .'/'. $datadir_patcher)) {
+		$this->rsync_path = $options['rsync_path'];
+		$this->rsync_excludes = (array) $options['rsync_excludes'];
+		$this->data_dirs = (array) $options['data_dirs'];
+
+		if (!file_exists($this->basedir .'/'. $options['datadir_patcher'])) {
 			throw new DeployException('Datadir patcher not found');
 		}
 
-		$this->datadir_patcher = $datadir_patcher;
+		$this->datadir_patcher = $options['datadir_patcher'];
 	}
 
 	/**
@@ -244,7 +257,215 @@ class Manager implements FileSyncInterface
 		$this->checkTargetSpecificFiles($action);
 	}
 
-	protected function checkTargetSpecificFiles($action)
+    /**
+     * Syncs all files to the remote servers.
+     */
+    public function createDeployment()
+    {
+        if (is_array($this->remote_host)) {
+            foreach ($this->remote_host as $remote_host) {
+                $this->preDeploy($remote_host, $this->remote_dir, $this->remote_target_dir);
+                $this->updateFiles($remote_host, $this->remote_dir, $this->remote_target_dir);
+            }
+        } else {
+            $this->preDeploy($this->remote_host, $this->remote_dir, $this->remote_target_dir);
+            $this->updateFiles($this->remote_host, $this->remote_dir, $this->remote_target_dir);
+        }
+    }
+
+    /**
+     * Activates the new deployment by updating symlinks and running postDeploy.
+     */
+    public function activateDeployment()
+    {
+        if (is_array($this->remote_host)) {
+            foreach ($this->remote_host as $remote_host) {
+                $this->changeSymlink($remote_host, $this->remote_dir, $this->remote_target_dir);
+                $this->postDeploy($remote_host, $this->remote_dir, $this->remote_target_dir);
+                $this->clearRemoteCaches($remote_host, $this->remote_dir, $this->remote_target_dir);
+            }
+        } else {
+            $this->changeSymlink($this->remote_host, $this->remote_dir, $this->remote_target_dir);
+            $this->postDeploy($this->remote_host, $this->remote_dir, $this->remote_target_dir);
+            $this->clearRemoteCaches($this->remote_host, $this->remote_dir, $this->remote_target_dir);
+        }
+    }
+
+    /**
+     * Deactivates the latest deployment by reverting symlinks back to the previous one.
+     */
+    public function deactivateDeployment()
+    {
+        if (is_array($this->remote_host)) {
+            // eerst op alle hosts de symlink terugdraaien
+            foreach ($this->remote_host as $remote_host) {
+                $this->preRollback($remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+                $this->changeSymlink($remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+            }
+        } else {
+            $this->preRollback($this->remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+            $this->changeSymlink($this->remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+        }
+    }
+
+    /**
+     * Clears the caches on the remote servers, then deletes the latest deployment.
+     */
+    public function deleteDeployment()
+    {
+        if (is_array($this->remote_host)) {
+            // de caches resetten
+            foreach ($this->remote_host as $remote_host) {
+                $this->clearRemoteCaches($remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+                $this->postRollback($remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+            }
+
+            // als laatste de nieuwe directory terugdraaien
+            foreach ($this->remote_host as $remote_host) {
+                $this->rollbackFiles($remote_host, $this->remote_dir, $this->last_remote_target_dir);
+            }
+        } else {
+            $this->clearRemoteCaches($this->remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+            $this->postRollback($this->remote_host, $this->remote_dir, $this->previous_remote_target_dir);
+
+            $this->rollbackFiles($this->remote_host, $this->remote_dir, $this->last_remote_target_dir);
+        }
+    }
+
+    /**
+     * Deletes old, obsolete deployments
+     */
+    public function cleanup()
+    {
+        $past_deployments = array();
+
+        if (is_array($this->remote_host)) {
+            foreach ($this->remote_host as $remote_host) {
+                if ($past_dirs = $this->collectPastDeployments($remote_host, $this->remote_dir)) {
+                    $past_deployments[] = array(
+                        'remote_host' => $remote_host,
+                        'remote_dir' => $this->remote_dir,
+                        'dirs' => $past_dirs
+                    );
+                }
+            }
+        } else {
+            if ($past_dirs = $this->collectPastDeployments($this->remote_host, $this->remote_dir)) {
+                $past_deployments[] = array(
+                    'remote_host' => $this->remote_host,
+                    'remote_dir' => $this->remote_dir,
+                    'dirs' => $past_dirs
+                );
+            }
+        }
+
+        if (!empty($past_deployments)) {
+            if ($this->local_shell->inputPrompt('Delete old directories? (y/n) [n]: ', 'n', false, array('y', 'n')) == 'y') {
+                $this->deletePastDeployments($past_deployments);
+            }
+        } else {
+            $this->logger->log('No cleanup needed');
+        }
+    }
+
+    /**
+     * Returns all obsolete deployments that can be deleted.
+     *
+     * @param string $remote_host
+     * @param string $remote_dir
+     * @throws DeployException
+     * @return array
+     */
+    protected function collectPastDeployments($remote_host, $remote_dir)
+    {
+        $this->logger->log("collectPastDeployments($remote_host, $remote_dir)", LOG_DEBUG);
+
+        $dirs = array();
+        $return = null;
+        $this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return);
+
+        if (0 !== $return) {
+            throw new DeployException('ssh initialize failed');
+        }
+
+        if (!count($dirs)) {
+            return array();
+        }
+
+        $deployment_dirs = array();
+
+        foreach ($dirs as $dirname) {
+            if (preg_match('/'. preg_quote($this->project_name) .'_\d{4}-\d{2}-\d{2}_\d{6}/', $dirname)) {
+                $deployment_dirs[] = $dirname;
+            }
+        }
+
+        // de two latest deployments always stay
+        if (count($deployment_dirs) <= 2) {
+            return array();
+        }
+
+        $dirs_to_delete = array();
+
+        sort($deployment_dirs);
+
+        $deployment_dirs = array_slice($deployment_dirs, 0, -2);
+
+        foreach ($deployment_dirs as $key => $dirname) {
+            $time = strtotime(str_replace(array($this->project_name .'_', '_'), array('', ' '), $dirname));
+
+            // deployments older than a month can go
+            if ($time < strtotime('-1 month')) {
+                $this->logger->log("$dirname is older than a month");
+
+                $dirs_to_delete[] = $dirname;
+            } elseif ($time < strtotime('-1 week')) {
+                // of deployments older than a week only the last one of the day stays
+                if (isset($deployment_dirs[$key+1])) {
+                    $time_next = strtotime(str_replace(array($this->project_name .'_', '_'), array('', ' '), $deployment_dirs[$key+1]));
+
+                    // if the next deployment was on the same day this one can go
+                    if (date('Y-m-d', $time_next) == date('Y-m-d', $time)) {
+                        $this->logger->log("$dirname was replaced the same day");
+
+                        $dirs_to_delete[] = $dirname;
+                    } else {
+                        $this->logger->log("$dirname stays");
+                    }
+                }
+            } else {
+                $this->logger->log("$dirname stays");
+            }
+        }
+
+        return $dirs_to_delete;
+    }
+
+    /**
+     * Deletes obsolete deployments as collected by collectPastDeployments
+     *
+     * @param array $past_deployments
+     */
+    protected function deletePastDeployments($past_deployments)
+    {
+        foreach ($past_deployments as $past_deployment) {
+            $this->rollbackFiles($past_deployment['remote_host'], $past_deployment['remote_dir'], implode(' ', $past_deployment['dirs']));
+        }
+    }
+
+    /**
+     * Verwijdert de laatst geuploadde directory
+     */
+    protected function rollbackFiles($remote_host, $remote_dir, $target_dir)
+    {
+        $this->logger->log('rollbackFiles', LOG_DEBUG);
+
+        $output = array();
+        $return = null;
+        $this->remote_shell->exec($remote_host, 'cd '. $remote_dir .'; rm -rf '. $target_dir, $output, $return);
+    }
+
+    protected function checkTargetSpecificFiles($action)
 	{
 		if (Deploy::UPDATE == $action) {
 			if (is_array($this->remote_host)) {
