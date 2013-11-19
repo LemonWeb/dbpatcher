@@ -205,15 +205,18 @@ class Deploy
 
         // initialize database manager
         if (null !== $options['database_dirs']) {
-            $control_host = is_array($options['remote_host']) ? $options['remote_host'] : $options['remote_host'];
+            if (!isset($options['control_host'])) {
+                $options['control_host'] = is_array($options['remote_host']) ? $options['remote_host'] : $options['remote_host'];
+            }
+
+            // instantiate a separate remote shell for the database manager that uses control_host as the default remote host
+            $remote_shell = new RemoteShell($this->logger, $options);
 
             $this->database_manager = new DatabaseManager(
                 $this->logger,
                 $this->local_shell,
-                $this->remote_shell,
-                $options,
-                $control_host,
-                $options['debug']
+                $remote_shell,
+                $options
             );
 
             if (!$this->database_manager instanceof DatabaseManagerInterface) {

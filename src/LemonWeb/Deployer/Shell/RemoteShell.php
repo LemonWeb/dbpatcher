@@ -31,6 +31,27 @@ class RemoteShell implements RemoteShellInterface
     protected $remote_user = null;
 
     /**
+     * Initialize
+     *
+     * @param LoggerInterface $logger
+     * @param array $options
+     */
+    public function __construct(LoggerInterface $logger, array $options)
+    {
+        $this->logger = $logger;
+
+        $options = array_merge(array(
+            'remote_host' => null,
+            'remote_user' => null,
+            'ssh_path' => trim(`which ssh`)
+        ), $options);
+
+        $this->remote_host = $options['remote_host'];
+        $this->remote_user = $options['remote_user'];
+        $this->ssh_path = $options['ssh_path'];
+    }
+
+    /**
      * Wrapper for SSH commands
      *
      * @param string $command
@@ -47,7 +68,11 @@ class RemoteShell implements RemoteShellInterface
             $remote_host = $this->remote_host;
         }
 
-        $cmd = $this->ssh_path .' '. $this->remote_user .'@'. $remote_host .' "'. str_replace('"', '\"', $command) .'"';
+        if ('localhost' == $remote_host) {
+            $cmd = $command;
+        } else {
+            $cmd = $this->ssh_path .' '. $this->remote_user .'@'. $remote_host .' "'. str_replace('"', '\"', $command) .'"';
+        }
 
         if ($hide_pattern != '') {
             $show_cmd = preg_replace($hide_pattern, $hide_replacement, $cmd);
@@ -63,24 +88,5 @@ class RemoteShell implements RemoteShellInterface
         array_shift($output);
 
         $this->logger->log(implode(PHP_EOL, $output), $ouput_loglevel);
-    }
-
-    /**
-     * Initialize
-     *
-     * @param LoggerInterface $logger
-     * @param array $options
-     */
-    public function __construct(LoggerInterface $logger, array $options)
-    {
-        $this->logger = $logger;
-        $this->remote_host = $options['remote_host'];
-        $this->remote_user = $options['remote_user'];
-
-        $options = array_merge(array(
-            'ssh_path' => trim(`which ssh`)
-        ), $options);
-
-        $this->ssh_path = $options['ssh_path'];
     }
 }

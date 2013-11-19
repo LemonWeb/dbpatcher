@@ -711,7 +711,7 @@ class Manager implements DatabaseManagerInterface
             $password = $this->database_pass;
         }
 
-        $command = str_replace(array(/*'(', ')',*/ '`'), array(/*'\(', '\)',*/ '\`'), $command);
+        $command = str_replace(array(/*'(', ')',*/ /*'`'*/), array(/*'\(', '\)',*/ /*'\`'*/), $command);
         $command = escapeshellarg($command);
 
         $this->remote_shell->exec(
