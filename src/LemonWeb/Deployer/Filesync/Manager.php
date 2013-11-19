@@ -382,7 +382,7 @@ class Manager implements FileSyncInterface
 
         $dirs = array();
         $return = null;
-        $this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return);
+        $this->remote_shell->exec("ls -1 $remote_dir", $remote_host, $dirs, $return);
 
         if (0 !== $return) {
             throw new DeployException('ssh initialize failed');
@@ -460,9 +460,7 @@ class Manager implements FileSyncInterface
     {
         $this->logger->log('rollbackFiles', LOG_DEBUG);
 
-        $output = array();
-        $return = null;
-        $this->remote_shell->exec($remote_host, 'cd '. $remote_dir .'; rm -rf '. $target_dir, $output, $return);
+        $this->remote_shell->exec('cd '. $remote_dir .'; rm -rf '. $target_dir, $remote_host);
     }
 
     protected function checkTargetSpecificFiles($action)
@@ -504,7 +502,7 @@ class Manager implements FileSyncInterface
 
 		$output = array();
 		$return = null;
-		$this->remote_shell->exec($remote_host, "mkdir -p $remote_dir", $output, $return, '', '', LOG_DEBUG);
+		$this->remote_shell->exec("mkdir -p $remote_dir", $remote_host, $output, $return, '', '', LOG_DEBUG);
 
 		if (empty($this->data_dirs)) {
 			return;
@@ -516,7 +514,7 @@ class Manager implements FileSyncInterface
 
 		$output = array();
 		$return = null;
-		$this->remote_shell->exec($remote_host, $cmd, $output, $return, '', '', LOG_DEBUG);
+		$this->remote_shell->exec($cmd, $remote_host, $output, $return, '', '', LOG_DEBUG);
 	}
 
 	/**
@@ -539,7 +537,7 @@ class Manager implements FileSyncInterface
 
 		$dirs = array();
 		$return = null;
-		$this->remote_shell->exec($remote_host, "ls -1 $remote_dir", $dirs, $return, '', '', LOG_DEBUG);
+		$this->remote_shell->exec("ls -1 $remote_dir", $remote_host, $dirs, $return, '', '', LOG_DEBUG);
 
 		if (0 !== $return) {
 			throw new DeployException('ssh initialize failed');

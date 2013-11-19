@@ -23,38 +23,30 @@ class RemoteShell implements RemoteShellInterface
     /**
      * @var string
      */
-    protected $remote_user = null;
+    protected $remote_host = null;
 
     /**
-     * Initialize
-     *
-     * @param LoggerInterface $logger
-     * @param array $options
+     * @var string
      */
-    public function __construct(LoggerInterface $logger, array $options)
-    {
-        $options = array_merge(array(
-            'ssh_path' => trim(`which ssh`)
-        ), $options);
-
-        $this->logger = $logger;
-        $this->remote_user = $options['remote_user'];
-        $this->ssh_path = $options['ssh_path'];
-    }
+    protected $remote_user = null;
 
     /**
      * Wrapper for SSH commands
      *
-     * @param string $remote_host
      * @param string $command
+     * @param string $remote_host
      * @param array $output
      * @param int $return
      * @param string $hide_pattern		Regexp to clean up output (eg. passwords)
      * @param string $hide_replacement
      * @param int $ouput_loglevel
      */
-    public function exec($remote_host, $command, &$output = array(), &$return = 0, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_DEBUG)
+    public function exec($command, $remote_host = null, &$output = array(), &$return = 0, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_DEBUG)
     {
+        if (null === $remote_host) {
+            $remote_host = $this->remote_host;
+        }
+
         $cmd = $this->ssh_path .' '. $this->remote_user .'@'. $remote_host .' "'. str_replace('"', '\"', $command) .'"';
 
         if ($hide_pattern != '') {
@@ -71,5 +63,24 @@ class RemoteShell implements RemoteShellInterface
         array_shift($output);
 
         $this->logger->log(implode(PHP_EOL, $output), $ouput_loglevel);
+    }
+
+    /**
+     * Initialize
+     *
+     * @param LoggerInterface $logger
+     * @param array $options
+     */
+    public function __construct(LoggerInterface $logger, array $options)
+    {
+        $this->logger = $logger;
+        $this->remote_host = $options['remote_host'];
+        $this->remote_user = $options['remote_user'];
+
+        $options = array_merge(array(
+            'ssh_path' => trim(`which ssh`)
+        ), $options);
+
+        $this->ssh_path = $options['ssh_path'];
     }
 }

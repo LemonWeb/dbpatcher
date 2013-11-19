@@ -162,34 +162,41 @@ class Manager implements DatabaseManagerInterface
      * @param LocalShellInterface $local_shell
      * @param RemoteShellInterface $remote_shell
      * @param array $options
-     * @param string $control_host
-     * @param bool $debug
      */
-    public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, array $options, $control_host, $debug = false)
+    public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, array $options)
     {
-        $options = array_merge(array(
-            // database versioning settings
-            'database_dirs' => null,
-            'database_host' => null,
-            'database_name' => null,
-            'database_user' => null,
-            'database_pass' => null,
-            'database_port' => null,
-            'database_patcher' => null,
-        ), $options);
-
         $this->logger = $logger;
         $this->local_shell = $local_shell;
         $this->remote_shell = $remote_shell;
 
         $this->basedir = $options['basedir'];
-        $this->control_host = $control_host;
-        $this->debug = $debug;
+
+        $package_dir = str_replace($this->basedir .'/', '', realpath(__DIR__ .'/../../../../'));
+
+        $options = array_merge(array(
+            'debug' => false,
+            'database_host' => null,
+            'database_port' => null,
+            'database_name' => null,
+            'database_user' => null,
+            'database_pass' => null,
+            'database_dirs' => null,
+            'database_patcher' => "$package_dir/bin/database-patcher.php",
+            'control_host' => null
+        ), $options);
+
+        $this->debug = $options['debug'];
+        $this->control_host = $options['control_host'];     // The hostname of the server used to send commands to the database server (TODO move to RemoteShell)
+        $this->database_host = $options['database_host'];   // The database server (connected to from the control_host)
+        $this->database_port = $options['database_port'];   // The listening port of the database server
+        $this->database_name = $options['database_name'];   // The name of the database
+        $this->database_user = $options['database_user'];   // Login name
+        $this->database_pass = $options['database_pass'];   // Password
+        $this->database_dirs = $options['database_dirs'];   // Array of directories where SQL patches are looked for
+        $this->database_patcher = $options['database_patcher']; // Path to database-patcher.php
 
         // determine the relative path to the SQL updates dir of the deployer package
-        $patchdir = realpath(__DIR__ .'/../../../../sql_updates');
-
-        $this->sql_updates_path = str_replace($this->basedir .'/', '', $patchdir);
+        $this->sql_updates_path = "$package_dir/sql_updates";
     }
 
     /**
@@ -656,7 +663,6 @@ class Manager implements DatabaseManagerInterface
         }
 
         $this->remote_shell->exec(
-            $this->control_host,
             "$command --host=\"{$this->database_host}\" ".
                     " --port={$this->database_port} ".
                     " --user=\"{$this->database_user}\" ".
@@ -664,6 +670,7 @@ class Manager implements DatabaseManagerInterface
                     " --database=\"{$this->database_name}\" ".
                     " --timestamp=\"". date(DATE_RSS, $this->current_timestamp) ."\" ".
                     ' --debug='. ((int) $this->debug),
+            $this->control_host,
             $output,
             $return,
             '/ --pass=\\"[^"]+\\" /',
@@ -708,8 +715,8 @@ class Manager implements DatabaseManagerInterface
         $command = escapeshellarg($command);
 
         $this->remote_shell->exec(
-            $this->control_host,
             "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password -e $command $database_name",
+            $this->control_host,
             $output, $return, '/ -p[^ ]+ /', ' -p***** '
         );
 

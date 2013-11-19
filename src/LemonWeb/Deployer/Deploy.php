@@ -396,11 +396,12 @@ class Deploy
 		$output = array();
 		$return = null;
 
-		$this->remote_shell->exec($remote_host,
+		$this->remote_shell->exec(
 			"cd $remote_dir/$target_dir; ".
 				"cat {$this->apc_deploy_version_template} | sed 's/#deployment_timestamp#/{$this->timestamp}/' > {$this->apc_deploy_version_path}.tmp; ".
 				"mv {$this->apc_deploy_version_path}.tmp {$this->apc_deploy_version_path}; ".
 				"curl -s -S {$apc_deploy_setrev_url}?rev={$this->timestamp}",
+            $remote_host,
 			$output, $return);
 
 		$this->logger->log($output);
@@ -453,8 +454,7 @@ class Deploy
             "php {$this->datadir_patcher} --datadir-prefix={$this->data_dir_prefix} --previous-dir={$this->last_remote_target_dir} ". implode(' ', $this->data_dirs);
 
         $output = array();
-        $return = null;
-        $this->remote_shell->exec($remote_host, $cmd, $output, $return);
+        $this->remote_shell->exec($cmd, $remote_host, $output);
 
         $this->logger->log($output);
 	}
@@ -487,7 +487,7 @@ class Deploy
         $output = array();
         $return = null;
 
-        $this->remote_shell->exec($remote_host, $cmd, $output, $return);
+        $this->remote_shell->exec($cmd, $remote_host);
 	}
 
 	/**
@@ -499,7 +499,7 @@ class Deploy
 
 		$output = array();
 		$return = null;
-		$this->remote_shell->exec($remote_host, "cd $remote_dir; rm production; ln -s {$target_dir} production", $output, $return);
+		$this->remote_shell->exec("cd $remote_dir; rm production; ln -s {$target_dir} production", $remote_host, $output, $return);
 	}
 
 	/**
@@ -516,9 +516,7 @@ class Deploy
 				$target_files_to_move .= "mv $currentpath $newpath; ";
             }
 
-			$output = array();
-			$return = null;
-			$this->remote_shell->exec($remote_host, "cd {$remote_dir}/{$this->remote_target_dir}; $target_files_to_move", $output, $return);
+			$this->remote_shell->exec("cd {$remote_dir}/{$this->remote_target_dir}; $target_files_to_move", $remote_host);
 		}
 	}
 
