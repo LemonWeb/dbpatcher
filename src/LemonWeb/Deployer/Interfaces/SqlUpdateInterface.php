@@ -7,7 +7,7 @@ namespace LemonWeb\Deployer\Interfaces;
  * An example:
  *
 
-	sql_20110104_164856.class.php:
+	sql_20110104_164856.php:
 
 	<?php
 

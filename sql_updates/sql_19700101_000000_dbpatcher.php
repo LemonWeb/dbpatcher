@@ -6,7 +6,7 @@ use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
 /**
  * Very early timestamp to make sure this patch is executed first because it is needed to register all other patches.
  */
-class sql_19700101_000000 implements SqlUpdateInterface
+class sql_19700101_000000_dbpatcher implements SqlUpdateInterface
 {
     public function isActive()
     {

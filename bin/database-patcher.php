@@ -29,12 +29,13 @@ try {
                     ' --user="[username]"'.
                     ' --pass="[password]"'.
                     ' --timestamp="[DATE_RSS]"'.
-                    ' < --files="[sql update filename],[sql update filename]" > '.
-                    ' < --patches="[timestamp,timestamp]"] >';
+                    ' --rootpath="[ROOT_PATH]"'.
+                    ' [ --files="[sql update filename],[sql update filename]" ] '.
+                    ' [ --patches="[timestamp,timestamp]"] ]';
 
     // check input
     if (
-        !isset($args['action'], $args['host'], $args['port'], $args['user'], $args['pass'], $args['database'], $args['timestamp'])
+        !isset($args['action'], $args['host'], $args['port'], $args['user'], $args['pass'], $args['database'], $args['timestamp'], $args['rootpath'])
         ||
         !(isset($args['files']) || isset($args['patches']))
         ||
@@ -43,9 +44,7 @@ try {
         throw new DeployException($usage, 1);
     }
 
-    $rootpath = Helper::findRootPath($_SERVER['argv'][0], __FILE__);
-
-    $patcher = new DatabasePatcher($logger, $args['host'], $args['port'], $args['user'], $args['pass'], $args['database'], $datetime, $rootpath);
+    $patcher = new DatabasePatcher($logger, $args['host'], $args['port'], $args['user'], $args['pass'], $args['database'], $datetime, $args['rootpath']);
 
     if (isset($args['files'])) {
         $patcher->setUpdateFiles(explode(',', $args['files']));

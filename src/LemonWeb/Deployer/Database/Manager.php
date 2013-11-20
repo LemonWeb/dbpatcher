@@ -373,7 +373,7 @@ class Manager implements DatabaseManagerInterface
         $patches_to_apply = array_intersect($patches_to_apply, array_keys(Helper::checkFiles($this->basedir, $patches_to_apply)));
 
         if (!empty($patches_to_revert)) {
-            $this->logger->log('Database patches to revert ('. count($patches_to_revert) .'): '. PHP_EOL . implode(PHP_EOL, $patches_to_revert));
+            $this->logger->log('Database patches to revert ('. count($patches_to_revert) .'): '. PHP_EOL . implode(PHP_EOL, array_keys($patches_to_revert)));
 
             $choice = $this->local_shell->inputPrompt('Revert ? (y/n) [n]: ', 'n', false, array('y', 'n'));
 
@@ -668,6 +668,7 @@ class Manager implements DatabaseManagerInterface
                     " --user=\"{$this->database_user}\" ".
                     " --pass=\"{$this->database_pass}\" ".
                     " --database=\"{$this->database_name}\" ".
+                    " --rootpath=\"{$this->basedir}\" ".
                     " --timestamp=\"". date(DATE_RSS, $this->current_timestamp) ."\" ".
                     ' --debug='. ((int) $this->debug),
             $this->control_host,
@@ -726,9 +727,9 @@ class Manager implements DatabaseManagerInterface
     }
 
     /**
-     * Makes a list of all SQL update files within the timeframe, in the order the start- and endtime imply:
-     *   if the starttime is *before* the endtime it's an update cycle and the updates are ordered chronologically (old to new).
-     *   if the starttime is *after* the endtime it's a rollback and the updates are ordered in reverse (new to old).
+     * Makes a list of all SQL update files, in the order the action implies:
+     *   'update': the updates are ordered chronologically (old to new).
+     *   'rollback': the updates are ordered in reverse (new to old).
      *
      * @param string $action    'update' or 'rollback'
      * @param boolean $quiet
@@ -744,20 +745,10 @@ class Manager implements DatabaseManagerInterface
 
         if (!empty($this->database_dirs)) {
             foreach ($this->database_dirs as $database_dir) {
-                $dir = new \DirectoryIterator($database_dir);
-
-                foreach ($dir as $entry) {
+                foreach (new SqlUpdateFilterIterator(new \DirectoryIterator($database_dir)) as $timestamp => $entry) {
                     /** @var \SplFileInfo|\DirectoryIterator $entry */
 
-                    if ($entry->isDot() || !$entry->isFile()) {
-                        continue;
-                    }
-
-                    if (preg_match('/^sql_(\d{8}_\d{6}).*?\.php$/', $entry->getFilename(), $matches)) {
-                        $timestamp = Helper::convertFilenameToDateTime($entry->getFilename());
-
-                        $update_files[$timestamp] = $entry->getPathname();
-                    }
+                    $update_files[$timestamp] = $entry->getPathname();
                 }
             }
 
