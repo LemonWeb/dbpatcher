@@ -2,8 +2,6 @@
 
 namespace LemonWeb\Deployer\Shell;
 
-use LemonWeb\Deployer\Interfaces\LocalShellInterface;
-
 
 class LocalShell implements LocalShellInterface
 {

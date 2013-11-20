@@ -1,21 +1,21 @@
 <?php
 
-namespace LemonWeb\Deployer\Patchers;
+namespace LemonWeb\Deployer\Database;
 
-use LemonWeb\Deployer\Database\Helper as DatabaseHelper;
+use LemonWeb\Deployer\Database\SqlUpdate\Helper as DatabaseHelper;
 use LemonWeb\Deployer\Exceptions\DatabaseException;
 use LemonWeb\Deployer\Exceptions\DeployException;
-use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
-use LemonWeb\Deployer\Interfaces\LoggerInterface;
-use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
+use LemonWeb\Deployer\Database\Drivers\DriverInterface as DatabaseDriverInterface;
+use LemonWeb\Deployer\Logger\LoggerInterface;
+use LemonWeb\Deployer\Database\SqlUpdate\SqlUpdateInterface;
 
 /**
  * Automatically determines which PHP extension to use and deploys database patches.
  */
-class Database
+class Patcher
 {
     /**
-     * @var \LemonWeb\Deployer\Interfaces\LoggerInterface
+     * @var \LemonWeb\Deployer\Logger\LoggerInterface
      */
     protected $logger;
 
@@ -50,7 +50,7 @@ class Database
     protected $driver = null;
 
     /**
-     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
+     * @param \LemonWeb\Deployer\Logger\LoggerInterface $logger
      * @param string $hostname
      * @param int $port
      * @param string $username

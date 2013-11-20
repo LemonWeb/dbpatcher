@@ -1,9 +1,8 @@
 <?php
 
-namespace LemonWeb\Deployer\Database;
+namespace LemonWeb\Deployer\Database\SqlUpdate;
 
 use LemonWeb\Deployer\Exceptions\DeployException;
-use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
 
 
 class Helper

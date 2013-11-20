@@ -1,9 +1,11 @@
 <?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace LemonWeb\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Database\Drivers;
+
+use LemonWeb\Deployer\Logger\LoggerInterface;
 
 
-interface DatabaseDriverInterface
+interface DriverInterface
 {
     /**
      * Checks if the driver's required extension is available.
@@ -15,7 +17,7 @@ interface DatabaseDriverInterface
     /**
      * Returns an instance of the database connector.
      *
-     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
+     * @param \LemonWeb\Deployer\Logger\LoggerInterface $logger
      * @param string $hostname
      * @param integer $port
      * @param string $username
@@ -96,4 +98,4 @@ interface DatabaseDriverInterface
      * @return integer
      */
     public function lastInsertId();
-} 
+}

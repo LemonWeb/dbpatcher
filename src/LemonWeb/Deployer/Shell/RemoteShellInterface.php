@@ -1,6 +1,8 @@
 <?php
 
-namespace LemonWeb\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Shell;
+
+use LemonWeb\Deployer\Logger\LoggerInterface;
 
 
 interface RemoteShellInterface

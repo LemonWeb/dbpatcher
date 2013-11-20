@@ -10,8 +10,8 @@ use LemonWeb\Deployer\Deploy;
 use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Logger\Logger as Logger;
 use LemonWeb\Deployer\Patchers\Helper;
-use LemonWeb\Deployer\Patchers\Database as DatabasePatcher;
-use LemonWeb\Deployer\Database\Helper as DatabaseHelper;
+use LemonWeb\Deployer\Database\Patcher as DatabasePatcher;
+use LemonWeb\Deployer\Database\SqlUpdate\Helper as DatabaseHelper;
 
 require __DIR__ .'/../../../autoload.php';
 

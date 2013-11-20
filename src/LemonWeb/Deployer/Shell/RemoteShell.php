@@ -2,8 +2,7 @@
 
 namespace LemonWeb\Deployer\Shell;
 
-use LemonWeb\Deployer\Interfaces\LoggerInterface;
-use LemonWeb\Deployer\Interfaces\RemoteShellInterface;
+use LemonWeb\Deployer\Logger\LoggerInterface;
 
 
 class RemoteShell implements RemoteShellInterface

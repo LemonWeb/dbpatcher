@@ -2,8 +2,6 @@
 
 namespace LemonWeb\Deployer\Logger;
 
-use LemonWeb\Deployer\Interfaces\LoggerInterface;
-
 
 class DebugLogger implements LoggerInterface
 {

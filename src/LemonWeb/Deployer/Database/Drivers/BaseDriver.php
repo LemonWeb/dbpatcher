@@ -2,15 +2,15 @@
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
-use LemonWeb\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Logger\LoggerInterface;
 
 /**
  * Shared methods across all database drivers.
  */
-abstract class BaseDriver
+abstract class BaseDriver implements DriverInterface
 {
     /**
-     * @var \LemonWeb\Deployer\Interfaces\LoggerInterface
+     * @var \LemonWeb\Deployer\Logger\LoggerInterface
      */
     protected $logger;
 
@@ -62,7 +62,7 @@ abstract class BaseDriver
     /**
      * Returns an instance of the database connector
      *
-     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
+     * @param \LemonWeb\Deployer\Logger\LoggerInterface $logger
      * @param string $hostname
      * @param integer $port
      * @param string $username

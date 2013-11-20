@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
-use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
 
 /**
  * Database driver which uses PHP's MySQLi extension.
@@ -10,7 +9,7 @@ use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
  * @method \mysqli get_connection()
  * @property \mysqli $connection
  */
-class Mysqli extends BaseDriver implements DatabaseDriverInterface
+class Mysqli extends BaseDriver
 {
     /**
      * Checks if the current PHP install has the MySQLi extension.

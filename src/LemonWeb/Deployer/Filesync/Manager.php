@@ -4,8 +4,7 @@ namespace LemonWeb\Deployer\Filesync;
 
 use LemonWeb\Deployer\Deploy;
 use LemonWeb\Deployer\Exceptions\DeployException;
-use LemonWeb\Deployer\Interfaces\FileSyncInterface;
-use LemonWeb\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Logger\LoggerInterface;
 
 
 class Manager implements FileSyncInterface
@@ -159,7 +158,7 @@ class Manager implements FileSyncInterface
 	protected $last_timestamp = null;
 
     /**
-     * @param \LemonWeb\Deployer\Interfaces\LoggerInterface $logger
+     * @param \LemonWeb\Deployer\Logger\LoggerInterface $logger
      * @param array $options
      * @throws \LemonWeb\Deployer\Exceptions\DeployException
      */

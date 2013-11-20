@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
-use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
 
 /**
  * Database driver which uses PHP's PDO extension.
@@ -10,7 +9,7 @@ use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
  * @method \PDO get_connection()
  * @property \PDO $connection
  */
-class Pdo extends BaseDriver implements DatabaseDriverInterface
+class Pdo extends BaseDriver
 {
     /**
      * Checks if the current PHP install has the PDO extension.

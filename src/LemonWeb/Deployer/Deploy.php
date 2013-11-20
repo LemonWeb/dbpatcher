@@ -3,11 +3,11 @@
 namespace LemonWeb\Deployer;
 
 use LemonWeb\Deployer\Exceptions\DeployException;
-use LemonWeb\Deployer\Interfaces\DatabaseManagerInterface;
-use LemonWeb\Deployer\Interfaces\FileSyncInterface;
-use LemonWeb\Deployer\Interfaces\LocalShellInterface;
-use LemonWeb\Deployer\Interfaces\LoggerInterface;
-use LemonWeb\Deployer\Interfaces\RemoteShellInterface;
+use LemonWeb\Deployer\Database\ManagerInterface as DatabaseManagerInterface;
+use LemonWeb\Deployer\Filesync\FileSyncInterface;
+use LemonWeb\Deployer\Shell\LocalShellInterface;
+use LemonWeb\Deployer\Logger\LoggerInterface;
+use LemonWeb\Deployer\Shell\RemoteShellInterface;
 use LemonWeb\Deployer\Shell\LocalShell;
 use LemonWeb\Deployer\Shell\RemoteShell;
 use LemonWeb\Deployer\Database\Manager as DatabaseManager;
@@ -235,7 +235,7 @@ class Deploy
 
             // als database host niet wordt meegegeven automatisch de eerste remote host pakken.
             $this->database_manager->setHost(
-                isset($options['database_host']) ? $options['database_host'] : $control_host,
+                isset($options['database_host']) ? $options['database_host'] : $options['control_host'],
                 $options['database_port']
             );
 

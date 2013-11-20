@@ -2,14 +2,16 @@
 
 namespace LemonWeb\Deployer\Database;
 
+use LemonWeb\Deployer\Database\SqlUpdate\FilterIterator;
+use LemonWeb\Deployer\Database\SqlUpdate\Helper;
 use LemonWeb\Deployer\Deploy;
 use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Exceptions\DatabaseException;
-use LemonWeb\Deployer\Interfaces\DatabaseManagerInterface;
-use LemonWeb\Deployer\Interfaces\LocalShellInterface;
-use LemonWeb\Deployer\Interfaces\RemoteShellInterface;
-use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
-use LemonWeb\Deployer\Interfaces\LoggerInterface;
+use LemonWeb\Deployer\Database\ManagerInterface as DatabaseManagerInterface;
+use LemonWeb\Deployer\Shell\LocalShellInterface;
+use LemonWeb\Deployer\Shell\RemoteShellInterface;
+use LemonWeb\Deployer\Database\SqlUpdate\SqlUpdateInterface;
+use LemonWeb\Deployer\Logger\LoggerInterface;
 
 
 class Manager implements DatabaseManagerInterface
@@ -745,7 +747,7 @@ class Manager implements DatabaseManagerInterface
 
         if (!empty($this->database_dirs)) {
             foreach ($this->database_dirs as $database_dir) {
-                foreach (new SqlUpdateFilterIterator(new \DirectoryIterator($database_dir)) as $timestamp => $entry) {
+                foreach (new FilterIterator(new \DirectoryIterator($database_dir)) as $timestamp => $entry) {
                     /** @var \SplFileInfo|\DirectoryIterator $entry */
 
                     $update_files[$timestamp] = $entry->getPathname();

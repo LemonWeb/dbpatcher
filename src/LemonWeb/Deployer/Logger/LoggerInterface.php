@@ -1,6 +1,6 @@
 <?php
 
-namespace LemonWeb\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Logger;
 
 
 interface LoggerInterface

@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Logger;
 
-use LemonWeb\Deployer\Interfaces\LoggerInterface as LoggerInterface;
 
 /**
  * TODO: replace this with a PSR-3 logger

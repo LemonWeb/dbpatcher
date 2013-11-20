@@ -1,11 +1,11 @@
 <?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
 
-namespace LemonWeb\Deployer\Database;
+namespace LemonWeb\Deployer\Database\SqlUpdate;
 
 use LemonWeb\Deployer\Exceptions\DeployException;
 
 
-class SqlUpdateFilterIterator extends \FilterIterator
+class FilterIterator extends \FilterIterator
 {
     /**
      * Determines if the current entry is a valid SQL update file.

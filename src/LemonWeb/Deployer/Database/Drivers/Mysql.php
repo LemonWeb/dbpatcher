@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
-use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
 
 /**
  * Database driver which uses PHP's old mysql extension.
@@ -12,7 +11,7 @@ use LemonWeb\Deployer\Interfaces\DatabaseDriverInterface;
  * @method resource get_connection()
  * @property resource $connection
  */
-class Mysql extends BaseDriver implements DatabaseDriverInterface
+class Mysql extends BaseDriver
 {
     /**
      * Checks if the current PHP install has the old mysql extension.

@@ -1,6 +1,8 @@
 <?php
 
-namespace LemonWeb\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Filesync;
+
+use LemonWeb\Deployer\Logger\LoggerInterface;
 
 
 interface FileSyncInterface

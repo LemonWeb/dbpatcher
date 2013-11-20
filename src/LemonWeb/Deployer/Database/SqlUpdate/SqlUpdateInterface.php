@@ -1,9 +1,9 @@
 <?php
 
-namespace LemonWeb\Deployer\Interfaces;
+namespace LemonWeb\Deployer\Database\SqlUpdate;
 
 /**
- * All SQL updates must implement this interface.
+ * All SQL updates must implement this interface, usually by extending AbstractSqlUpdate.
  * An example:
  *
 
@@ -11,10 +11,10 @@ namespace LemonWeb\Deployer\Interfaces;
 
 	<?php
 
-    use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
+    use LemonWeb\Deployer\Database\SqlUpdate\AbstractSqlUpdate;
 
 
-	class sql_20110104_164856 implements SqlUpdateInterface
+	class sql_20110104_164856 implements AbstractSqlUpdate
 	{
  		public function isActive()
  		{
@@ -66,7 +66,7 @@ interface SqlUpdateInterface
 
 	/**
 	 * If this update should be used or not.
-	 * This is handy for creating cleanup-updates (data-destructive) that should be run somewhere in the future.
+	 * This is convenient for creating cleanup-updates (data-destructive) that should be run somewhere in the future.
 	 *
 	 * @return boolean
 	 */
@@ -80,18 +80,25 @@ interface SqlUpdateInterface
     public function getType();
 
 	/**
-	 * Geeft de SQL statements terug die moeten worden uitgevoerd om de database te upgraden naar deze timestamp.
-	 * Let op: de query moet altijd eindigen met een ; want als er meerdere updates moeten worden uitgevoerd worden ze allemaal aan elkaar gekoppeld.
+	 * Returns an SQL statement (series) to make changes to the database.
+	 * Warning: the statement must always end with a semicolon (";") to allow for concatenation of multiple updates.
 	 *
-	 * @returns string
+	 * @return string
 	 */
 	public function up();
 
 	/**
-	 * Geeft de SQL statements terug die de wijzigingen van up() ongedaan maken
-	 * Let op: de query moet altijd eindigen met een ; want als er meerdere updates moeten worden uitgevoerd worden ze allemaal aan elkaar gekoppeld.
+	 * Returns an SQL statements (series) that revert the changes of the statements in up().
+	 * Warning: like up(), this statement must also end with a semicolon (";").
 	 *
-	 * @returns string
+	 * @return string
 	 */
 	public function down();
+
+    /**
+     * Returns an array of classnames that this patch needs to be performed.
+     *
+     * @return array
+     */
+    public function getDependencies();
 }

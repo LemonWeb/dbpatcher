@@ -1,23 +1,13 @@
 <?php
 
-use LemonWeb\Deployer\Interfaces\SqlUpdateInterface;
+use LemonWeb\Deployer\Database\SqlUpdate\AbstractSqlUpdate;
 
 
 /**
  * Very early timestamp to make sure this patch is executed first because it is needed to register all other patches.
  */
-class sql_19700101_000000_dbpatcher implements SqlUpdateInterface
+class sql_19700101_000000_dbpatcher extends AbstractSqlUpdate
 {
-    public function isActive()
-    {
-        return true;
-    }
-
-    public function getType()
-    {
-        return self::TYPE_SMALL;
-    }
-
     public function up()
 	{
 		return '
@@ -32,10 +22,5 @@ class sql_19700101_000000_dbpatcher implements SqlUpdateInterface
               UNIQUE (`patch_name`)
             );
 		';
-	}
-
-	public function down()
-	{
-		return '';
 	}
 }
