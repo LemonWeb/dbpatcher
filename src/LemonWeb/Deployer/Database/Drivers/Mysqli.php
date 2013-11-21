@@ -85,11 +85,34 @@ class Mysqli extends BaseDriver
     {
         $this->last_error = null;
 
-        if (!($r = $this->connection->query($query))) {
+        if (!($result = $this->connection->query($query))) {
             $this->error($query, $this->connection->error);
         }
 
-        return $r;
+        return $result;
+    }
+
+    /**
+     * Executes multiple SQL queries
+     *
+     * @param string $queries
+     * @return \PDOStatement
+     */
+    public function multiQuery($queries)
+    {
+        $this->last_error = null;
+
+        if (!($result = $this->connection->multi_query($queries))) {
+            $this->error($queries, $this->connection->error);
+        }
+
+        if ($this->connection->more_results()) {
+            while ($next_result = $this->connection->next_result()) {
+                $result = $this->connection->store_result();
+            }
+        }
+
+        return $result;
     }
 
     public function escape($var)

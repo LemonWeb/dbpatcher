@@ -16,6 +16,7 @@ class sql_19700101_000000_dbpatcher extends AbstractSqlUpdate
               `patch_name` varchar(400) COLLATE ascii_general_ci NOT NULL,
               `patch_timestamp` varchar(14) NOT NULL,
               `down_sql` TEXT NOT NULL,
+              `dependencies` TEXT NOT NULL,
               `applied_at` datetime DEFAULT NULL,
               `reverted_at` datetime DEFAULT NULL,
               PRIMARY KEY (`id`),

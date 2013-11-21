@@ -13,25 +13,26 @@ use LemonWeb\Deployer\Patchers\Helper;
 use LemonWeb\Deployer\Database\Patcher as DatabasePatcher;
 use LemonWeb\Deployer\Database\SqlUpdate\Helper as DatabaseHelper;
 
-require __DIR__ .'/../../../autoload.php';
+require __DIR__ . '/../../../autoload.php';
 
 $args = Helper::parseArgs($_SERVER['argv']);
 
-$logger = new Logger(null, isset($args['debug']) ? (bool) $args['debug'] : false);
+$logger = new Logger(null, isset($args['debug']) ? (bool)$args['debug'] : false);
 
 try {
     $usage =
-        'Usage: php database-patcher.php'.
-                    ' --action="[update,rollback]"'.
-                    ' --host="[hostname]"'.
-                    ' --port="[port]"'.
-                    ' --database="[database name]"'.
-                    ' --user="[username]"'.
-                    ' --pass="[password]"'.
-                    ' --timestamp="[DATE_RSS]"'.
-                    ' --rootpath="[ROOT_PATH]"'.
-                    ' [ --files="[sql update filename],[sql update filename]" ] '.
-                    ' [ --patches="[timestamp,timestamp]"] ]';
+        "Usage: php database-patcher.php\n" .
+        "           --action=\"[update,rollback]\"\n" .
+        "           --host=\"[hostname]\"\n" .
+        "           --port=\"[port]\"\n" .
+        "           --database=\"[database name]\"\n" .
+        "           --user=\"[username]\"\n" .
+        "           --pass=\"[password]\"\n" .
+        "           --timestamp=\"[DATE_RSS]\"\n" .
+        "           --rootpath=\"[ROOT_PATH]\"\n" .
+        "           [--register-only=1] ".
+        "           [ --files=\"[sql update filename],[sql update filename]\"\n ] " .
+        "           [ --patches=\"[timestamp,timestamp]\"\n] ]";
 
     // check input
     if (
@@ -57,7 +58,7 @@ try {
     switch ($args['action']) {
         case Deploy::UPDATE:
             $logger->log(Deploy::UPDATE, LOG_DEBUG);
-            $patcher->update();
+            $patcher->update(isset($args['register-only']) ? (bool)$args['register_only'] : false);
             break;
         case Deploy::ROLLBACK:
             $logger->log(Deploy::ROLLBACK, LOG_DEBUG);
@@ -70,13 +71,11 @@ try {
     $logger->log('Done');
     exit(0);
 }
-catch (DeployException $e)
-{
+catch (DeployException $e) {
     $logger->log($e->getMessage());
     exit(max($e->getCode(), 1));
 }
-catch (Exception $e)
-{
+catch (Exception $e) {
     $logger->log($e->getMessage());
     exit(1);
 }

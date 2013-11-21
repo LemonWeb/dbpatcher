@@ -82,8 +82,12 @@ class Helper
         return $sql_patch_objects;
     }
 
-    protected static function getClassnameFromFilepath($filepath)
+    /**
+     * @param string $filepath
+     * @return string
+     */
+    public static function getClassnameFromFilepath($filepath)
     {
-        return str_replace('.class', '', pathinfo($filepath, PATHINFO_FILENAME));
+        return pathinfo($filepath, PATHINFO_FILENAME);
     }
 }

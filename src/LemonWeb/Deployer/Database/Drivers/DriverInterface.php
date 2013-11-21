@@ -35,6 +35,12 @@ interface DriverInterface
     public function query($sql);
 
     /**
+     * @param string $sql
+     * @return mixed
+     */
+    public function multiQuery($sql);
+
+    /**
      * @param mixed $var
      * @return mixed
      */
