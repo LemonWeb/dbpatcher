@@ -13,6 +13,7 @@ use LemonWeb\Deployer\Patchers\Helper;
 use LemonWeb\Deployer\Database\Patcher as DatabasePatcher;
 use LemonWeb\Deployer\Database\SqlUpdate\Helper as DatabaseHelper;
 
+// activate Composer's autoloader
 require __DIR__ . '/../../../autoload.php';
 
 $args = Helper::parseArgs($_SERVER['argv']);
@@ -30,9 +31,9 @@ try {
         "           --pass=\"[password]\"\n" .
         "           --timestamp=\"[DATE_RSS]\"\n" .
         "           --rootpath=\"[ROOT_PATH]\"\n" .
-        "           [--register-only=1] ".
-        "           [ --files=\"[sql update filename],[sql update filename]\"\n ] " .
-        "           [ --patches=\"[timestamp,timestamp]\"\n] ]";
+        "           [--register-only=1]\n" .
+        "           [ --files=\"[sql update filename],[sql update filename]\" ]\n" .
+        "           [ --patches=\"[timestamp,timestamp]\" ]\n";
 
     // check input
     if (
@@ -58,7 +59,7 @@ try {
     switch ($args['action']) {
         case Deploy::UPDATE:
             $logger->log(Deploy::UPDATE, LOG_DEBUG);
-            $patcher->update(isset($args['register-only']) ? (bool)$args['register_only'] : false);
+            $patcher->update(isset($args['register-only']) ? (bool)$args['register-only'] : false);
             break;
         case Deploy::ROLLBACK:
             $logger->log(Deploy::ROLLBACK, LOG_DEBUG);
@@ -70,8 +71,7 @@ try {
 
     $logger->log('Done');
     exit(0);
-}
-catch (DeployException $e) {
+} catch (DeployException $e) {
     $logger->log($e->getMessage());
     exit(max($e->getCode(), 1));
 }
