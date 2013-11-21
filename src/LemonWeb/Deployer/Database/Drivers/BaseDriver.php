@@ -80,9 +80,9 @@ abstract class BaseDriver implements DriverInterface
     }
 
     /**
-     *	Returns the connection object
+     * Returns the connection object
      *
-     *	@return \mysqli|\PDO|resource
+     * @return \mysqli|\PDO|resource
      */
     protected function get_connection()
     {
@@ -131,6 +131,6 @@ abstract class BaseDriver implements DriverInterface
      */
     protected function getLockName($lock_name)
     {
-        return 'deployer_'. $lock_name;
+        return 'deployer_' . $lock_name;
     }
 }

@@ -2,4 +2,6 @@
 
 namespace LemonWeb\Deployer\Exceptions;
 
-class DatabaseException extends \Exception {}
+class DatabaseException extends \Exception
+{
+}

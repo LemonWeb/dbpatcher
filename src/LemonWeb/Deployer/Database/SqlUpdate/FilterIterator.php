@@ -4,7 +4,6 @@ namespace LemonWeb\Deployer\Database\SqlUpdate;
 
 use LemonWeb\Deployer\Exceptions\DeployException;
 
-
 class FilterIterator extends \FilterIterator
 {
     /**
@@ -30,7 +29,8 @@ class FilterIterator extends \FilterIterator
             if (count($check) == 0) {
                 return false;
             }
-        } catch (DeployException $exception) {
+        }
+        catch (DeployException $exception) {
             return false;
         }
 

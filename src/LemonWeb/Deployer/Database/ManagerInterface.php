@@ -6,7 +6,6 @@ use LemonWeb\Deployer\Logger\LoggerInterface;
 use LemonWeb\Deployer\Shell\LocalShellInterface;
 use LemonWeb\Deployer\Shell\RemoteShellInterface;
 
-
 interface ManagerInterface
 {
     public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, array $options);

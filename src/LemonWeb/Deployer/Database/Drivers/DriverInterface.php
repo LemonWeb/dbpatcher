@@ -4,7 +4,6 @@ namespace LemonWeb\Deployer\Database\Drivers;
 
 use LemonWeb\Deployer\Logger\LoggerInterface;
 
-
 interface DriverInterface
 {
     /**

@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Database\SqlUpdate;
 
-
 abstract class AbstractSqlUpdate implements SqlUpdateInterface
 {
     public function isActive()

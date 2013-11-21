@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
-
 /**
  * Database driver which uses PHP's PDO extension.
  *
@@ -27,19 +26,19 @@ class Pdo extends BaseDriver
     protected $affected_rows = 0;
 
     /**
-     *	Sets the variables needed for the connection
+     * Sets the variables needed for the connection
      *
-     *	@param string $hostname
-     *	@param integer $port
-     *	@param string $username
-     *	@param string $password
+     * @param string $hostname
+     * @param integer $port
+     * @param string $username
+     * @param string $password
      */
     protected function set_connection($hostname, $port, $username, $password)
     {
         $this->username = $username;
         $this->password = $password;
         $this->hostname = $hostname;
-        $this->port     = $port;
+        $this->port = $port;
     }
 
     /**
@@ -49,18 +48,18 @@ class Pdo extends BaseDriver
      */
     public function connect()
     {
-        $dsn = 'mysql:host='. $this->hostname;
+        $dsn = 'mysql:host=' . $this->hostname;
 
         if (null !== $this->charset) {
-            $dsn .= ';charset='. $this->charset;
+            $dsn .= ';charset=' . $this->charset;
         }
 
         if ($this->database) {
-            $dsn .= ';dbname='. $this->database;
+            $dsn .= ';dbname=' . $this->database;
         }
 
         if ($this->port) {
-            $dsn .= ';port='. $this->port;
+            $dsn .= ';port=' . $this->port;
         }
 
         $this->connection = new \PDO(
@@ -95,7 +94,7 @@ class Pdo extends BaseDriver
             $error = print_r($error, true);
         }
 
-        $this->logger->log($error .' ['. $query .']');
+        $this->logger->log($error . ' [' . $query . ']');
 
         $this->last_error = $error;
     }
@@ -185,8 +184,9 @@ class Pdo extends BaseDriver
      */
     public function fetchAssoc($result)
     {
-        if (!$result)
+        if (!$result) {
             return $result;
+        }
 
         return $result->fetch(\PDO::FETCH_ASSOC);
     }

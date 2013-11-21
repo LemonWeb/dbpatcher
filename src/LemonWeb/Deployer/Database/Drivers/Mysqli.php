@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
-
 /**
  * Database driver which uses PHP's MySQLi extension.
  *
@@ -34,7 +33,7 @@ class Mysqli extends BaseDriver
         $this->username = $username;
         $this->password = $password;
         $this->hostname = $hostname;
-        $this->port     = $port;
+        $this->port = $port;
     }
 
     /**
@@ -71,7 +70,7 @@ class Mysqli extends BaseDriver
      */
     protected function error($query, $error)
     {
-        $this->logger->log($error .' ['. $query .']');
+        $this->logger->log($error . ' [' . $query . ']');
 
         $this->last_error = $error;
     }
@@ -152,8 +151,9 @@ class Mysqli extends BaseDriver
      */
     public function fetchAssoc($result)
     {
-        if (!$result)
+        if (!$result) {
             return $result;
+        }
 
         return $result->fetch_assoc();
     }

@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Logger;
 
-
 interface LoggerInterface
 {
     /**
@@ -17,9 +16,9 @@ interface LoggerInterface
      * Output wrapper
      *
      * @param string $message
-     * @param integer $level		 LOG_INFO (6)  = normal (always show),
-     *								 LOG_DEBUG (7) = debugging (hidden by default)
-     * @param bool $extra_newline	 Automatically add a newline at the end
+     * @param integer $level LOG_INFO (6)  = normal (always show),
+     *                                 LOG_DEBUG (7) = debugging (hidden by default)
+     * @param bool $extra_newline Automatically add a newline at the end
      */
     public function log($message, $level = LOG_INFO, $extra_newline = false);
 

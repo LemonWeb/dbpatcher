@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
-
 /**
  * Database driver which uses PHP's old mysql extension.
  *
@@ -82,7 +81,7 @@ class Mysql extends BaseDriver
      */
     protected function error($query, $error)
     {
-        $this->logger->log($error .' ['. $query .']');
+        $this->logger->log($error . ' [' . $query . ']');
 
         $this->last_error = $error;
     }

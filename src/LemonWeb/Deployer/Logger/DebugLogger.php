@@ -2,7 +2,6 @@
 
 namespace LemonWeb\Deployer\Logger;
 
-
 class DebugLogger implements LoggerInterface
 {
     public function __construct($logfile = null, $debug = false)

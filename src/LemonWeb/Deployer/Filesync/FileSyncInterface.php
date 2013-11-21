@@ -4,14 +4,13 @@ namespace LemonWeb\Deployer\Filesync;
 
 use LemonWeb\Deployer\Logger\LoggerInterface;
 
-
 interface FileSyncInterface
 {
-	public function __construct(LoggerInterface $logger, array $options);
+    public function __construct(LoggerInterface $logger, array $options);
 
-	public function initialize($timestamp);
+    public function initialize($timestamp);
 
-	public function check($action);
+    public function check($action);
 
     public function createDeployment();
 
