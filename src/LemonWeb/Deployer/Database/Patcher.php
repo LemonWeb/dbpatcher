@@ -166,6 +166,12 @@ class Patcher
                     SET applied_at = '" . $this->driver->escape($this->timestamp) . "'
                     WHERE patch_name = '" . $this->driver->escape($filename) . "';
                 ");
+
+                if (!$register_only) {
+                    $this->logger->log("Patch '$filename' succeeded.");
+                } else {
+                    $this->logger->log("Patch '$filename' registered.");
+                }
             } else {
                 // the db_patches patch has no record set, insert it now
                 $this->driver->query("
@@ -233,6 +239,8 @@ class Patcher
                 DELETE FROM db_patches
                 WHERE id = " . $this->driver->escape($patch_info['id']) . ";
             ");
+
+            $this->logger->log("Patch '$timestamp' reverted.");
         }
     }
 }

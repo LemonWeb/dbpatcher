@@ -32,8 +32,8 @@ try {
         "           --timestamp=\"[DATE_RSS]\"\n" .
         "           --rootpath=\"[ROOT_PATH]\"\n" .
         "           [--register-only=1]\n" .
-        "           [ --files=\"[sql update filename],[sql update filename]\" ]\n" .
-        "           [ --patches=\"[timestamp,timestamp]\" ]\n";
+        "           [--files=\"[sql update filename],[sql update filename]\"]\n" .
+        "           [--patches=\"[timestamp,timestamp]\"]\n";
 
     // check input
     if (
@@ -69,13 +69,8 @@ try {
             throw new DeployException($usage, 1);
     }
 
-    $logger->log('Done');
     exit(0);
-} catch (DeployException $e) {
+} catch (Exception $e) {
     $logger->log($e->getMessage());
     exit(max($e->getCode(), 1));
-}
-catch (Exception $e) {
-    $logger->log($e->getMessage());
-    exit(1);
 }

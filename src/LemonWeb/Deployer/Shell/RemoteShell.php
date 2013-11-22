@@ -61,7 +61,7 @@ class RemoteShell implements RemoteShellInterface
      * @param string $hide_replacement
      * @param int $ouput_loglevel
      */
-    public function exec($command, $remote_host = null, &$output = array(), &$return = 0, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_DEBUG)
+    public function exec($command, $remote_host = null, &$output = array(), &$return = 0, $hide_pattern = '', $hide_replacement = '', $ouput_loglevel = LOG_INFO)
     {
         if (null === $remote_host) {
             $remote_host = $this->remote_host;
@@ -79,13 +79,10 @@ class RemoteShell implements RemoteShellInterface
             $show_cmd = $cmd;
         }
 
-        $this->logger->log('Remote: '. $show_cmd, $ouput_loglevel);
+        $this->logger->log('Remote: '. $show_cmd, LOG_DEBUG);
 
         exec($cmd, $output, $return);
 
-        // remove some garbage returned on the first line
-        array_shift($output);
-
-        $this->logger->log(implode(PHP_EOL, $output), $ouput_loglevel);
+        $this->logger->log($output, $ouput_loglevel);
     }
 }

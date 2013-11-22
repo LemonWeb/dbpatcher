@@ -317,7 +317,7 @@ class Manager implements DatabaseManagerInterface
      */
     public function check($action)
     {
-        $this->logger->log('Database updates:', LOG_INFO, true);
+        $this->logger->log('Check for database updates:', LOG_INFO, true);
 
         if (empty($this->database_dirs)) {
             return;
@@ -376,10 +376,16 @@ class Manager implements DatabaseManagerInterface
 
         // check if the files all contain SQL patches and filter out inactive patches
         $patches_to_apply = array_intersect($patches_to_apply, array_keys(Helper::checkFiles($this->basedir, $patches_to_apply)));
+        $patches_to_revert = $this->checkRevertDependencies($patches_to_revert, $dependencies);
+        $patches_to_apply = $this->checkDependencies($patches_to_apply, array_keys($performed_patches));
+
+        // nothing needs to be done
+        if (empty($patches_to_apply) && empty($patches_to_register_as_done) && empty($patches_to_revert)) {
+            $this->logger->log('Database is up to date !');
+            return;
+        }
 
         if (!empty($patches_to_revert)) {
-            $patches_to_revert = $this->checkRevertDependencies($patches_to_revert, $dependencies);
-
             if (!empty($patches_to_revert)) {
                 $this->logger->log('Database patches to revert (' . count($patches_to_revert) . '): ' . PHP_EOL . implode(PHP_EOL, array_keys($patches_to_revert)));
 
@@ -392,8 +398,6 @@ class Manager implements DatabaseManagerInterface
         }
 
         if (!empty($patches_to_apply)) {
-            $patches_to_apply = $this->checkDependencies($patches_to_apply, array_keys($performed_patches));
-
             if (!empty($patches_to_apply)) {
                 $this->logger->log('Database patches to apply (' . count($patches_to_apply) . '): ' . PHP_EOL . implode(PHP_EOL, $patches_to_apply));
 
@@ -464,7 +468,7 @@ class Manager implements DatabaseManagerInterface
                 $dependency_timestamp = Helper::convertFilenameToDateTime($dependency_classname);
 
                 if (!in_array($dependency_timestamp, $available_dependencies)) {
-                    $this->logger->log("Patch $classname skipped, missing dependency $dependency_classname", LOG_INFO);
+                    $this->logger->log("Can't apply patch '$classname', missing dependency '$dependency_classname'.");
                     continue(2);
                 }
             }
@@ -491,10 +495,12 @@ class Manager implements DatabaseManagerInterface
         $checked_patches = array();
 
         foreach ($patches_to_revert as $patch_timestamp => $patch_applied_at) {
-            foreach ($dependencies as $timestamp => $patch_dependencies) {
+            foreach ($dependencies as $patch_dependencies) {
                 if (isset($patch_dependencies[$patch_timestamp])) {
-                    $this->logger->log("Patch $patch_timestamp skipped, {$patch_dependencies[$patch_timestamp]} depends upon it", LOG_INFO);
+                    $this->logger->log("Can't revert patch '$patch_timestamp' because '{$patch_dependencies[$patch_timestamp]}' needs it.");
                     continue(2);
+                } else {
+                    $checked_patches[$patch_timestamp] = $patch_applied_at;
                 }
             }
         }
@@ -524,6 +530,9 @@ class Manager implements DatabaseManagerInterface
             FROM db_patches
             ORDER BY patch_timestamp, id
         ', $output);
+
+        // remove some garbage returned on the first line
+        array_shift($output);
 
         foreach ($output as $patch_record) {
             list($patch_name, $patch_timestamp, $patch_dependencies, $applied_at, $reverted_at) = explode("\t", $patch_record);
@@ -614,45 +623,30 @@ class Manager implements DatabaseManagerInterface
 
         if (!empty($this->patches_to_apply)) {
             $this->sendToDatabase(
-                "cd {$remote_dir}/{$target_dir}; " .
-                "php {$this->database_patcher} " .
-                    ' --action="update" ' .
+                "cd {$remote_dir}/{$target_dir};" .
+                " php {$this->database_patcher}" .
+                    ' --action="update"' .
                     ' --files="' . implode(',', $this->patches_to_apply) . '"'
             );
         }
 
         if (!empty($this->patches_to_revert)) {
             $this->sendToDatabase(
-                "cd {$remote_dir}/{$target_dir}; " .
-                "php {$this->database_patcher} " .
-                    ' --action="rollback" ' .
+                "cd {$remote_dir}/{$target_dir};" .
+                " php {$this->database_patcher}" .
+                    ' --action="rollback"' .
                     ' --patches="' . implode(',', array_keys($this->patches_to_revert)) . '"'
             );
         }
 
         if (!empty($this->patches_to_register_as_done)) {
             $this->sendToDatabase(
-                "cd {$remote_dir}/{$target_dir}; " .
-                "php {$this->database_patcher} " .
-                ' --action="update" ' .
-                ' --files="' . implode(',', $this->patches_to_register_as_done) . '" ' .
-                ' --register-only=1 '
+                "cd {$remote_dir}/{$target_dir};" .
+                " php {$this->database_patcher}" .
+                    ' --action="update"' .
+                    ' --files="' . implode(',', $this->patches_to_register_as_done) . '"' .
+                    ' --register-only=1'
             );
-
-            /*$sql = '';
-
-            foreach ($this->patches_to_register_as_done as $timestamp => $filepath) {
-                if ($sql != '') {
-                    $sql .= ', ';
-                }
-
-                $sql .= "('$filepath', $timestamp, FROM_UNIXTIME({$this->current_timestamp}))";
-            }
-
-            $this->query("
-                INSERT INTO db_patches (patch_name, patch_timestamp, applied_at)
-                VALUES $sql;
-            ");*/
         }
     }
 
@@ -673,17 +667,17 @@ class Manager implements DatabaseManagerInterface
         if (!empty($this->patches_to_apply)) {
             $this->sendToDatabase(
                 "cd {$remote_dir}/{$previous_target_dir}; " .
-                "php {$this->database_patcher} " .
-                    '--action=update ' .
-                    '--files="' . implode(',', array_keys($this->patches_to_apply)) . '"'
+                "php {$this->database_patcher}" .
+                    ' --action=update' .
+                    ' --files="' . implode(',', array_keys($this->patches_to_apply)) . '"'
             );
         }
 
         if (!empty($this->patches_to_revert)) {
             $this->sendToDatabase(
                 "cd {$remote_dir}/{$previous_target_dir}; " .
-                "php {$this->database_patcher} " .
-                    ' --action="rollback" ' .
+                "php {$this->database_patcher}" .
+                    ' --action="rollback"' .
                     ' --patches="' . implode(',', $this->patches_to_revert) . '"'
             );
         }
@@ -749,7 +743,7 @@ class Manager implements DatabaseManagerInterface
                 $this->getDatabaseLogin();
             }
 
-            $this->logger->log('Database check passed');
+            $this->logger->log('Database account check passed', LOG_INFO, true);
         }
 
         $this->database_checked = true;
@@ -773,13 +767,13 @@ class Manager implements DatabaseManagerInterface
         }
 
         $this->remote_shell->exec(
-            "$command --host=\"{$this->database_host}\" " .
-                    " --port={$this->database_port} " .
-                    " --user=\"{$this->database_user}\" " .
-                    " --pass=\"{$this->database_pass}\" " .
-                    " --database=\"{$this->database_name}\" " .
-                    " --rootpath=\"{$this->basedir}\" " .
-                    " --timestamp=\"" . date(DATE_RSS, $this->current_timestamp) . "\" " .
+            "$command --host=\"{$this->database_host}\"" .
+                    " --port={$this->database_port}" .
+                    " --user=\"{$this->database_user}\"" .
+                    " --pass=\"{$this->database_pass}\"" .
+                    " --database=\"{$this->database_name}\"" .
+                    " --rootpath=\"{$this->basedir}\"" .
+                    " --timestamp=\"" . date(DATE_RSS, $this->current_timestamp) . "\"" .
                     ' --debug=' . ((int)$this->debug),
             $this->control_host,
             $output,
@@ -826,9 +820,13 @@ class Manager implements DatabaseManagerInterface
         $command = escapeshellarg($command);
 
         $this->remote_shell->exec(
-            "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password -e $command $database_name",
+            "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password -e $command --skip-column-names $database_name",
             $this->control_host,
-            $output, $return, '/ -p[^ ]+ /', ' -p***** '
+            $output,
+            $return,
+            '/ -p[^ ]+ /',
+            ' -p***** ',
+            LOG_DEBUG
         );
 
         if (0 !== $return) {
@@ -847,8 +845,6 @@ class Manager implements DatabaseManagerInterface
      */
     public function findSQLFiles($action, $quiet = false)
     {
-        $previous_quiet = $this->logger->setQuiet($quiet);
-
         $this->logger->log("findSQLFiles($action, " . var_export($quiet, true) . ")", LOG_DEBUG);
 
         $update_files = array();
@@ -868,20 +864,18 @@ class Manager implements DatabaseManagerInterface
                 if (Deploy::UPDATE == $action) {
                     ksort($update_files, SORT_NUMERIC);
 
-                    $this->logger->log($count_files . ' SQL update patch' . ($count_files > 1 ? 'es' : '') . ':');
+                    $this->logger->log($count_files . ' SQL update patch' . ($count_files > 1 ? 'es' : '') . ' found:');
                 } elseif (Deploy::ROLLBACK == $action) {
                     krsort($update_files, SORT_NUMERIC);
 
-                    $this->logger->log($count_files . ' SQL rollback patch' . ($count_files > 1 ? 'es' : '') . ':');
+                    $this->logger->log($count_files . ' SQL rollback patch' . ($count_files > 1 ? 'es' : '') . ' found:');
                 }
 
-                $this->logger->log($update_files);
+                $this->logger->log($update_files, LOG_INFO, true);
             } else {
                 $this->logger->log('No SQL patches found.');
             }
         }
-
-        $this->logger->setQuiet($previous_quiet);
 
         return $update_files;
     }

@@ -58,7 +58,7 @@ class Logger implements LoggerInterface
             $message = implode(PHP_EOL, $message);
         }
 
-        if (!$this->quiet && ($level == LOG_INFO || ($this->debug && $level == LOG_DEBUG))) {
+        if (!$this->quiet && ($level == LOG_INFO || ($this->debug && LOG_DEBUG == $level))) {
             echo $message . PHP_EOL;
 
             if ($extra_newline) {
@@ -67,7 +67,7 @@ class Logger implements LoggerInterface
         }
 
         if ($this->logfile) {
-            error_log($message . PHP_EOL, 3, $this->logfile);
+            error_log($message . PHP_EOL . ($extra_newline ? PHP_EOL : ''), 3, $this->logfile);
         }
     }
 
