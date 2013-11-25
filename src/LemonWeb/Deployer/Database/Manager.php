@@ -389,7 +389,11 @@ class Manager implements DatabaseManagerInterface
             if (!empty($patches_to_revert)) {
                 $this->logger->log('Database patches to revert (' . count($patches_to_revert) . '): ' . PHP_EOL . implode(PHP_EOL, array_keys($patches_to_revert)));
 
-                $choice = $this->local_shell->inputPrompt('Revert ? (y/p/n) [n]: ', 'n', false, array('y', 'p', 'n'));
+                if (count($patches_to_revert) > 1) {
+                    $choice = $this->local_shell->inputPrompt('Revert ? (y/p/n) [n]: ', 'n', false, array('y', 'p', 'n'));
+                } else {
+                    $choice = $this->local_shell->inputPrompt('Revert ? (y/n) [n]: ', 'n', false, array('y', 'n'));
+                }
 
                 if ('y' == $choice) {
                     $this->patches_to_revert += $patches_to_revert;
@@ -404,7 +408,11 @@ class Manager implements DatabaseManagerInterface
             if (!empty($patches_to_apply)) {
                 $this->logger->log('Database patches to apply (' . count($patches_to_apply) . '): ' . PHP_EOL . implode(PHP_EOL, $patches_to_apply));
 
-                $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
+                if (count($patches_to_apply) > 1) {
+                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
+                } else {
+                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'i'));
+                }
 
                 if ('a' == $choice) {
                     $this->patches_to_apply += $patches_to_apply;
@@ -424,7 +432,11 @@ class Manager implements DatabaseManagerInterface
             if (!empty($patches_to_register_as_done)) {
                 $this->logger->log('Other patches found (' . count($patches_to_register_as_done) . '): ' . PHP_EOL . implode(PHP_EOL, $patches_to_register_as_done));
 
-                $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
+                if (count($patches_to_register_as_done) > 1) {
+                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
+                } else {
+                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [i]: ', 'i', false, array('a', 'r', 'i'));
+                }
 
                 if ('a' == $choice) {
                     $this->patches_to_apply += $patches_to_register_as_done;
@@ -432,8 +444,8 @@ class Manager implements DatabaseManagerInterface
                     $this->patches_to_register_as_done += $patches_to_register_as_done;
                 } elseif ('p' == $choice) {
                     list($picked_apply, $picked_register) = $this->pickPatches($patches_to_register_as_done, array('a', 'r', 'i'));
-                    $this->patches_to_apply = $picked_apply;
-                    $this->patches_to_register_as_done = $picked_register;
+                    $this->patches_to_apply += $picked_apply;
+                    $this->patches_to_register_as_done += $picked_register;
                 }
             }
         }
@@ -463,7 +475,7 @@ class Manager implements DatabaseManagerInterface
 
         // prompt the user to choose for each patch
         foreach ($patches as $key => $value) {
-            $choice = $this->local_shell->inputPrompt("$value (". implode('/', $choices) .")", '', false, $choices);
+            $choice = $this->local_shell->inputPrompt("$value (". implode('/', $choices) ."): ", '', false, $choices);
             $picks[array_search($choice, $choices)][$key] = $value;
         }
 
@@ -603,11 +615,19 @@ class Manager implements DatabaseManagerInterface
         }
 
         if (!empty($crashed_patches)) {
-            throw new DeployException('Patch(es) ' . implode(', ', $crashed_patches) . ' have crashed at previous update !');
+            if (count($crashed_patches) > 1) {
+                throw new DeployException('Patches ' . implode(', ', $crashed_patches) . ' have crashed at previous update !');
+            } else {
+                throw new DeployException('Patch ' . implode(', ', $crashed_patches) . ' has crashed at previous update !');
+            }
         }
 
         if (!empty($reverted_patches)) {
-            throw new DeployException('Patch(es) ' . implode(', ', $reverted_patches) . ' have crashed at previous rollback !');
+            if (count($reverted_patches) > 1) {
+                throw new DeployException('Patches ' . implode(', ', $reverted_patches) . ' have crashed at previous rollback !');
+            } else {
+                throw new DeployException('Patch ' . implode(', ', $reverted_patches) . ' has crashed at previous rollback !');
+            }
         }
 
         return array($applied_patches, $dependencies);

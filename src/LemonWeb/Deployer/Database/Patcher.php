@@ -186,6 +186,8 @@ class Patcher
                         '" . $this->driver->escape($this->timestamp) . "'
                     );
                 ");
+
+                $this->logger->log("Patch '$filename' succeeded.");
             }
         }
     }

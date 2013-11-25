@@ -33,6 +33,7 @@ class Helper
      * @param string $path_prefix
      * @param array $filepaths
      * @throws \LemonWeb\Deployer\Exceptions\DeployException
+     * @throws \LemonWeb\Deployer\Database\SqlUpdate\InvalidPatchException
      * @return SqlUpdateInterface[]                [filepath => sql_update_object, ...]
      */
     public static function checkFiles($path_prefix, $filepaths)
@@ -53,25 +54,25 @@ class Helper
             }
 
             if (!class_exists($classname)) {
-                throw new DeployException("Class $classname not found in $filepath");
+                throw new InvalidPatchException("Class $classname not found in $filepath");
             }
 
             $sql_patch = new $classname();
 
             if (!$sql_patch instanceof SqlUpdateInterface) {
-                throw new DeployException("Class $classname doesn't implement the SQL_update interface");
+                throw new InvalidPatchException("Class $classname doesn't implement the SQL_update interface");
             }
 
             $up_sql = trim($sql_patch->up());
 
             if ('' != $up_sql && substr($up_sql, -1) != ';') {
-                throw new DeployException("$classname up() method contains code but doesn't end with ';'");
+                throw new InvalidPatchException("$classname up() method contains code but doesn't end with ';'");
             }
 
             $down_sql = trim($sql_patch->down());
 
             if ('' != $down_sql && substr($down_sql, -1) != ';') {
-                throw new DeployException("$classname down() method contains code but doesn't end with ';'");
+                throw new InvalidPatchException("$classname down() method contains code but doesn't end with ';'");
             }
 
             if ($sql_patch->isActive()) {

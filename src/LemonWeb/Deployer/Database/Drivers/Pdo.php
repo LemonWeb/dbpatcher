@@ -94,7 +94,7 @@ class Pdo extends BaseDriver
             $error = print_r($error, true);
         }
 
-        $this->logger->log($error . ' [' . $query . ']');
+        $this->logger->log($error . ' [' . $query . ']', LOG_DEBUG);
 
         $this->last_error = $error;
     }
