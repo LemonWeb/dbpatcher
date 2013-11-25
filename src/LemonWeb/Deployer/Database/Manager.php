@@ -2,6 +2,7 @@
 
 namespace LemonWeb\Deployer\Database;
 
+use LemonWeb\Deployer\Database\SqlUpdate\AbstractSqlUpdate;
 use LemonWeb\Deployer\Database\SqlUpdate\FilterIterator;
 use LemonWeb\Deployer\Database\SqlUpdate\Helper;
 use LemonWeb\Deployer\Deploy;
@@ -406,7 +407,23 @@ class Manager implements DatabaseManagerInterface
 
         if (!empty($patches_to_apply)) {
             if (!empty($patches_to_apply)) {
-                $this->logger->log('Database patches to apply (' . count($patches_to_apply) . '): ' . PHP_EOL . implode(PHP_EOL, $patches_to_apply));
+                $patches_list = 'Database patches to apply (' . count($patches_to_apply) . '): ' . PHP_EOL;
+
+                foreach ($patches_to_apply as $patch_filename) {
+                    $patches_list .= $patch_filename;
+
+                    $patch_classname = Helper::getClassnameFromFilepath($patch_filename);
+                    /** @var AbstractSqlUpdate $patch */
+                    $patch = new $patch_classname();
+
+                    if ($patch->getType() == SqlUpdateInterface::TYPE_LARGE) {
+                        $patches_list .= " \033[01;31m[Large]\033[0m\n";
+                    }
+
+                    $patches_list .= PHP_EOL;
+                }
+
+                $this->logger->log($patches_list);
 
                 if (count($patches_to_apply) > 1) {
                     $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
@@ -430,7 +447,23 @@ class Manager implements DatabaseManagerInterface
             $patches_to_register_as_done = $this->checkDependencies($patches_to_register_as_done, array_keys($this->patches_to_apply) + array_keys($performed_patches));
 
             if (!empty($patches_to_register_as_done)) {
-                $this->logger->log('Other patches found (' . count($patches_to_register_as_done) . '): ' . PHP_EOL . implode(PHP_EOL, $patches_to_register_as_done));
+                $patches_list = 'Other patches found (' . count($patches_to_register_as_done) . '): ' . PHP_EOL;
+
+                foreach ($patches_to_register_as_done as $patch_filename) {
+                    $patches_list .= $patch_filename;
+
+                    $patch_classname = Helper::getClassnameFromFilepath($patch_filename);
+                    /** @var AbstractSqlUpdate $patch */
+                    $patch = new $patch_classname();
+
+                    if ($patch->getType() == SqlUpdateInterface::TYPE_LARGE) {
+                        $patches_list .= " \033[01;31m[Large]\033[0m\n";
+                    }
+
+                    $patches_list .= PHP_EOL;
+                }
+
+                $this->logger->log($patches_list);
 
                 if (count($patches_to_register_as_done) > 1) {
                     $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
