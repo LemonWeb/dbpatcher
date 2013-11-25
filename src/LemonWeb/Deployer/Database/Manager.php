@@ -389,10 +389,13 @@ class Manager implements DatabaseManagerInterface
             if (!empty($patches_to_revert)) {
                 $this->logger->log('Database patches to revert (' . count($patches_to_revert) . '): ' . PHP_EOL . implode(PHP_EOL, array_keys($patches_to_revert)));
 
-                $choice = $this->local_shell->inputPrompt('Revert ? (y/n) [n]: ', 'n', false, array('y', 'n'));
+                $choice = $this->local_shell->inputPrompt('Revert ? (y/p/n) [n]: ', 'n', false, array('y', 'p', 'n'));
 
                 if ('y' == $choice) {
                     $this->patches_to_revert += $patches_to_revert;
+                } elseif ('p' == $choice) {
+                    list($picked_revert) = $this->pickPatches($patches_to_revert, array('y', 'n'));
+                    $this->patches_to_revert += $picked_revert;
                 }
             }
         }
@@ -401,12 +404,16 @@ class Manager implements DatabaseManagerInterface
             if (!empty($patches_to_apply)) {
                 $this->logger->log('Database patches to apply (' . count($patches_to_apply) . '): ' . PHP_EOL . implode(PHP_EOL, $patches_to_apply));
 
-                $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [i]: ', 'i', false, array('a', 'r', 'i'));
+                $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
 
                 if ('a' == $choice) {
                     $this->patches_to_apply += $patches_to_apply;
                 } elseif ('r' == $choice) {
                     $this->patches_to_register_as_done += $patches_to_apply;
+                } elseif ('p' == $choice) {
+                    list($picked_apply, $picked_register) = $this->pickPatches($patches_to_apply, array('a', 'r', 'i'));
+                    $this->patches_to_apply += $picked_apply;
+                    $this->patches_to_register_as_done += $picked_register;
                 }
             }
         }
@@ -417,12 +424,16 @@ class Manager implements DatabaseManagerInterface
             if (!empty($patches_to_register_as_done)) {
                 $this->logger->log('Other patches found (' . count($patches_to_register_as_done) . '): ' . PHP_EOL . implode(PHP_EOL, $patches_to_register_as_done));
 
-                $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [i]: ', 'i', false, array('a', 'r', 'i'));
+                $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
 
                 if ('a' == $choice) {
                     $this->patches_to_apply += $patches_to_register_as_done;
                 } elseif ('r' == $choice) {
                     $this->patches_to_register_as_done += $patches_to_register_as_done;
+                } elseif ('p' == $choice) {
+                    list($picked_apply, $picked_register) = $this->pickPatches($patches_to_register_as_done, array('a', 'r', 'i'));
+                    $this->patches_to_apply = $picked_apply;
+                    $this->patches_to_register_as_done = $picked_register;
                 }
             }
         }
@@ -432,6 +443,31 @@ class Manager implements DatabaseManagerInterface
         }
 
         $this->getDatabaseLogin();
+    }
+
+    /**
+     * Prompt the user to choose patch-by-patch what to do with it, and returns the results under the same index as the choices.
+     *
+     * @param array $patches
+     * @param array $choices
+     * @return array
+     */
+    protected function pickPatches(array $patches, array $choices)
+    {
+        // initialize the return array
+        $picks = array();
+
+        foreach ($choices as $key => $choice) {
+            $picks[$key] = array();
+        }
+
+        // prompt the user to choose for each patch
+        foreach ($patches as $key => $value) {
+            $choice = $this->local_shell->inputPrompt("$value (". implode('/', $choices) .")", '', false, $choices);
+            $picks[array_search($choice, $choices)][$key] = $value;
+        }
+
+        return $picks;
     }
 
     /**
