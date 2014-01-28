@@ -4,13 +4,13 @@ The easiest way is to use Composer:
 
     {
         "require": {
-            "bugbyte/deployer": "dev-databasemanager"
+            "lemonweb/deployer": "2.*@dev"
         }
     }
 
 USAGE
 
-See [example.php](https://github.com/bjdelange/deployer/blob/master/example.php) for a simple setup.
+See [example.php](https://github.com/lemonweb/deployer/blob/master/example.php) for a simple setup.
 
 TODO
 
