@@ -940,7 +940,7 @@ class Manager implements DatabaseManagerInterface
 
         if (!empty($this->database_dirs)) {
             foreach ($this->database_dirs as $database_dir) {
-                foreach (new FilterIterator(new \DirectoryIterator($database_dir)) as $timestamp => $entry) {
+                foreach (new FilterIterator(new \DirectoryIterator($this->basedir . '/' . ltrim($database_dir, '/'))) as $timestamp => $entry) {
                     /** @var \SplFileInfo|\DirectoryIterator $entry */
 
                     $update_files[$timestamp] = $entry->getPathname();
