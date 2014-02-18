@@ -428,7 +428,7 @@ class Manager implements DatabaseManagerInterface
                 if (count($patches_to_apply) > 1) {
                     $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
                 } else {
-                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'i'));
+                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [i]: ', 'i', false, array('a', 'r', 'i'));
                 }
 
                 if ('a' == $choice) {
