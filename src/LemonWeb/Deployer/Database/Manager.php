@@ -943,7 +943,7 @@ class Manager implements DatabaseManagerInterface
                 foreach (new FilterIterator(new \DirectoryIterator($this->basedir . '/' . ltrim($database_dir, '/'))) as $timestamp => $entry) {
                     /** @var \SplFileInfo|\DirectoryIterator $entry */
 
-                    $update_files[$timestamp] = $entry->getPathname();
+                    $update_files[$timestamp] = $database_dir . '/' . $entry->getFilename();
                 }
             }
 
