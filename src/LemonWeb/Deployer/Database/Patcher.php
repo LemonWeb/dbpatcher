@@ -140,8 +140,8 @@ class Patcher
                     VALUES (
                         '" . $this->driver->escape($filename) . "',
                         '" . $this->driver->escape($patch_timestamp) . "',
-                        '" . $this->driver->escape(trim($sql_patch_object->down())) . "',
-                        '" . $this->driver->escape(implode(',', $sql_patch_object->getDependencies())) . "'
+                        ". (trim($sql_patch_object->down()) != '' ? "'". $this->driver->escape(trim($sql_patch_object->down())) . "'" : 'null') .",
+                        ". (count($sql_patch_object->getDependencies()) > 0 ? "'" . $this->driver->escape(implode(',', $sql_patch_object->getDependencies())) . "'" : 'null') ."
                     );
                 ");
             }

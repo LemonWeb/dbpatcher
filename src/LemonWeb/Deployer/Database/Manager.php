@@ -633,7 +633,7 @@ class Manager implements DatabaseManagerInterface
                 // this patch was succesfully applied
                 $applied_patches[$patch_timestamp] = $applied_at;
 
-                if ('' != $patch_dependencies) {
+                if ('NULL' != $patch_dependencies) {
                     $dependency_names = array();
 
                     $patch_dependency_names = (array) explode(',', $patch_dependencies);
