@@ -5,18 +5,34 @@ namespace LemonWeb\Deployer\Shell;
 
 class LocalShell implements LocalShellInterface
 {
+    protected $autoDefaults = false;
+
     /**
-     * Asks the user for input
-     *
-     * @param string $message
-     * @param string $default
-     * @param boolean $isPassword
-     * @param array $aChoices
-     * @return string
+     * {@inheritdoc}
      */
-    public function inputPrompt($message, $default = '', $isPassword = false, $aChoices = null)
+    public function __construct($autoDefaults = false)
     {
+        $this->autoDefaults = $autoDefaults;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function inputPrompt($message, $default = '', $isPassword = false, $choices = null)
+    {
+        if ($this->autoDefaults) {
+            if ($isPassword) {
+                $default = '*****';
+            }
+
+            $message .= $default . PHP_EOL;
+        }
+
         fwrite(STDOUT, $message);
+
+        if ($this->autoDefaults) {
+            return $default;
+        }
 
         if (!$isPassword) {
             $input = trim(fgets(STDIN));
@@ -30,8 +46,8 @@ class LocalShell implements LocalShellInterface
         }
 
         // if possible choices are specified but not met, re-ask the question
-        if (null !== $aChoices && !in_array($input, $aChoices)) {
-            return $this->inputPrompt($message, $default, $isPassword, $aChoices);
+        if (null !== $choices && !in_array($input, $choices)) {
+            return $this->inputPrompt($message, $default, $isPassword, $choices);
         }
 
         return $input;
