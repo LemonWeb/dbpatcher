@@ -4,23 +4,54 @@ namespace LemonWeb\Deployer\Database\SqlUpdate;
 
 abstract class AbstractSqlUpdate implements SqlUpdateInterface
 {
-    public function isActive()
-    {
-        return true;
-    }
+    /**
+     * @var bool
+     */
+    protected $active = true;
 
-    public function getType()
-    {
-        return SqlUpdateInterface::TYPE_SMALL;
-    }
+    /**
+     * @var int
+     */
+    protected $type = SqlUpdateInterface::TYPE_SMALL;
 
+    /**
+     * @var array
+     */
+    protected $dependencies = array();
+
+    /**
+     * {@inheritdoc}
+     */
     public function down()
     {
         return '';
     }
 
-    public function getDependencies()
+    /**
+     * {@inheritdoc}
+     */
+    final public function isActive()
     {
-        return array();
+        return $this->active;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    final public function getType()
+    {
+        return $this->type;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    final public function getDependencies()
+    {
+        if (get_class($this) != 'sql_19700101_000000_dbpatcher') {
+            return array_merge(array('sql_19700101_000000_dbpatcher'), $this->dependencies);
+        }
+
+        return $this->dependencies;
     }
 }
