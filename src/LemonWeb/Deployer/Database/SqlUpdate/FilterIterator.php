@@ -13,13 +13,10 @@ class FilterIterator extends \FilterIterator
      */
     public function accept()
     {
+        /** @var \DirectoryIterator $this */
         $filename = $this->getFilename();
 
-        if ($this->isDot() || !$this->isFile() || substr($filename, -4) != '.php') {
-            return false;
-        }
-
-        if (!preg_match('/sql_(\d{8}_\d{6})/', $filename)) {
+        if (!$this->isFile() || substr($filename, -4) != '.php' || preg_match('/^sql_(\d{8}_\d{6})/', $filename) === 0) {
             return false;
         }
 
@@ -39,6 +36,7 @@ class FilterIterator extends \FilterIterator
 
     public function key()
     {
-        return Helper::convertFilenameToDateTime($this->getFilename());
+        /** @var \DirectoryIterator $this */
+        return Helper::getClassnameFromFilepath($this->getFilename());
     }
 }

@@ -222,8 +222,6 @@ class Deploy
                 throw new DeployException('Object of type ' . get_class($this->database_manager) . ' does not implement DatabaseManagerInterface', 1);
             }
 
-            $this->database_manager->setDirs($options['database_dirs']);
-
             if (null !== $options['database_patcher']) {
                 if (!file_exists($this->basedir . '/' . $options['database_patcher'])) {
                     throw new DeployException('Database patcher not found');

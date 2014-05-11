@@ -134,7 +134,7 @@ class Pdo extends BaseDriver
 
     public function escape($var)
     {
-        return preg_replace("#^'(.*)'#", '$1', $this->connection->quote($var));
+        return preg_replace("#^'(.*)'$#", '$1', $this->connection->quote($var));
     }
 
     public function startTransaction()

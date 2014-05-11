@@ -3,6 +3,7 @@
 namespace LemonWeb\Deployer\Database;
 
 use LemonWeb\Deployer\Database\SqlUpdate\Helper as DatabaseHelper;
+use LemonWeb\Deployer\Database\SqlUpdate\Helper;
 use LemonWeb\Deployer\Exceptions\DatabaseException;
 use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Database\Drivers\DriverInterface as DatabaseDriverInterface;
@@ -124,6 +125,7 @@ class Patcher
         }
 
         foreach ($this->sql_patch_objects as $filename => $sql_patch_object) {
+            $patch_name = DatabaseHelper::getClassnameFromFilepath($filename);
             $patch_timestamp = DatabaseHelper::convertFilenameToDateTime($filename);
 
             // Register the patch in the db_patches table (except for the db_patches table patch itself, that wouldn't be possible yet).
@@ -138,10 +140,10 @@ class Patcher
                         dependencies
                     )
                     VALUES (
-                        '" . $this->driver->escape($filename) . "',
+                        '" . $this->driver->escape($patch_name) . "',
                         '" . $this->driver->escape($patch_timestamp) . "',
                         ". (trim($sql_patch_object->down()) != '' ? "'". $this->driver->escape(trim($sql_patch_object->down())) . "'" : 'null') .",
-                        ". (count($sql_patch_object->getDependencies()) > 0 ? "'" . $this->driver->escape(implode(',', $sql_patch_object->getDependencies())) . "'" : 'null') ."
+                        ". (count($sql_patch_object->getDependencies()) > 0 ? "'" . $this->driver->escape(implode("\n", $sql_patch_object->getDependencies())) . "'" : 'null') ."
                     );
                 ");
             }
@@ -164,7 +166,7 @@ class Patcher
                 $this->driver->query("
                     UPDATE db_patches
                     SET applied_at = '" . $this->driver->escape($this->timestamp) . "'
-                    WHERE patch_name = '" . $this->driver->escape($filename) . "';
+                    WHERE patch_name = '" . $this->driver->escape($patch_name) . "';
                 ");
 
                 if (!$register_only) {
@@ -181,7 +183,7 @@ class Patcher
                         applied_at
                     )
                     VALUES (
-                        '" . $this->driver->escape($filename) . "',
+                        '" . $this->driver->escape($patch_name) . "',
                         '" . $this->driver->escape($patch_timestamp) . "',
                         '" . $this->driver->escape($this->timestamp) . "'
                     );
@@ -203,12 +205,12 @@ class Patcher
             return;
         }
 
-        foreach ($this->sql_revert_patches as $timestamp) {
+        foreach ($this->sql_revert_patches as $patch_name) {
             // get the code to revert the patch
             $result = $this->driver->query("
                 SELECT id, down_sql
                 FROM db_patches
-                WHERE patch_timestamp = '" . $this->driver->escape($timestamp) . "'
+                WHERE patch_name = '" . $this->driver->escape($patch_name) . "'
                 ORDER BY applied_at DESC, id DESC;
             ");
 
@@ -221,7 +223,7 @@ class Patcher
                 $this->driver->query("
                     UPDATE db_patches
                     SET reverted_at = '" . $this->driver->escape($this->timestamp) . "'
-                    WHERE patch_timestamp = '" . $this->driver->escape($timestamp) . "';
+                    WHERE patch_timestamp = '" . $this->driver->escape($patch_name) . "';
                 ");
 
                 // revert the patch
@@ -242,7 +244,7 @@ class Patcher
                 WHERE id = " . $this->driver->escape($patch_info['id']) . ";
             ");
 
-            $this->logger->log("Patch '$timestamp' reverted.");
+            $this->logger->log("Patch '$patch_name' reverted.");
         }
     }
 }

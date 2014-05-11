@@ -95,7 +95,7 @@ interface SqlUpdateInterface
     public function down();
 
     /**
-     * Returns an array of classnames that this patch needs to be performed.
+     * Returns an array of classnames that this patch depends upon.
      *
      * @return array
      */
