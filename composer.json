@@ -8,6 +8,9 @@
     ],
     "description": "A website deployment tool with database versioning",
     "license": "MIT",
+    "require": {
+        "php": ">=5.3.3"
+    },
     "autoload": {
         "psr-0": {
             "LemonWeb": "src/"

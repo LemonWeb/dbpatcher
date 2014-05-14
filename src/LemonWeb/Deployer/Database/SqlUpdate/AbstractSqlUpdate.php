@@ -20,6 +20,21 @@ abstract class AbstractSqlUpdate implements SqlUpdateInterface
     protected $dependencies = array();
 
     /**
+     * @var array
+     */
+    protected $options = array();
+
+    /**
+     * {@inheritdoc}
+     */
+    final public function __construct(array $options)
+    {
+        $this->options = array_merge($options, array(
+            'charset' => 'utf8',
+        ));
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function down()

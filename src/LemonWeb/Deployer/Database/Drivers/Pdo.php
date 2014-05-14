@@ -50,10 +50,6 @@ class Pdo extends BaseDriver
     {
         $dsn = 'mysql:host=' . $this->hostname;
 
-        if (null !== $this->charset) {
-            $dsn .= ';charset=' . $this->charset;
-        }
-
         if ($this->database) {
             $dsn .= ';dbname=' . $this->database;
         }
@@ -70,6 +66,8 @@ class Pdo extends BaseDriver
                 \PDO::ATTR_PERSISTENT => false,
             )
         );
+
+        $this->query("SET NAMES {$this->charset}");
 
         return $this->connection;
     }

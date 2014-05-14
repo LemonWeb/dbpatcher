@@ -2,8 +2,8 @@
 
 namespace LemonWeb\Deployer\Database;
 
+use LemonWeb\Deployer\Database\Drivers\DriverInterface;
 use LemonWeb\Deployer\Database\SqlUpdate\Helper as DatabaseHelper;
-use LemonWeb\Deployer\Database\SqlUpdate\Helper;
 use LemonWeb\Deployer\Exceptions\DatabaseException;
 use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Database\Drivers\DriverInterface as DatabaseDriverInterface;
@@ -19,6 +19,11 @@ class Patcher
      * @var \LemonWeb\Deployer\Logger\LoggerInterface
      */
     protected $logger;
+
+    /**
+     * @var string
+     */
+    protected $charset;
 
     /**
      * @var string
@@ -56,27 +61,30 @@ class Patcher
      * @param int $port
      * @param string $username
      * @param string $password
+     * @param string $charset
      * @param string $database The name of the database
      * @param string $timestamp The current timestamp (to prevent issues with date-differences between the executing server and the database server)
      * @param string $rootpath The root path of the project
      * @throws \LemonWeb\Deployer\Exceptions\DeployException
      */
-    public function __construct(LoggerInterface $logger, $hostname, $port, $username, $password, $database, $timestamp, $rootpath)
+    public function __construct(LoggerInterface $logger, $hostname, $port, $username, $password, $charset, $database, $timestamp, $rootpath)
     {
         $this->logger = $logger;
+        $this->charset = $charset;
         $this->database = $database;
         $this->timestamp = $timestamp;
         $this->rootpath = $rootpath;
 
         // find a usable driver
         foreach (array('Pdo', 'Mysqli') as $drivername) {
+            /** @var DriverInterface $classname */
             $classname = 'LemonWeb\Deployer\Database\Drivers\\' . $drivername;
 
             if (!class_exists($classname)) {
                 continue;
             }
 
-            $driver = new $classname($logger, $hostname, $port, $username, $password, $database);
+            $driver = new $classname($logger, $hostname, $port, $username, $password, $database, $charset);
 
             if (!$driver instanceof DatabaseDriverInterface || !$driver->checkExtension()) {
                 continue;
@@ -99,7 +107,7 @@ class Patcher
      */
     public function setUpdateFiles($files)
     {
-        $this->sql_patch_objects = DatabaseHelper::checkFiles($this->rootpath, $files);
+        $this->sql_patch_objects = DatabaseHelper::checkFiles($this->rootpath, $files, array('charset' => $this->charset));
     }
 
     /**

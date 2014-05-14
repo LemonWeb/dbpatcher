@@ -29,6 +29,7 @@ try {
         "           --database=\"[database name]\"\n" .
         "           --user=\"[username]\"\n" .
         "           --pass=\"[password]\"\n" .
+        "           --charset=\"[utf8,latin1]\"\n" .
         "           --timestamp=\"[DATE_RSS]\"\n" .
         "           --rootpath=\"[ROOT_PATH]\"\n" .
         "           [--register-only=1]\n" .
@@ -37,7 +38,7 @@ try {
 
     // check input
     if (
-        !isset($args['action'], $args['host'], $args['port'], $args['user'], $args['pass'], $args['database'], $args['timestamp'], $args['rootpath'])
+        !isset($args['action'], $args['host'], $args['port'], $args['user'], $args['pass'], $args['charset'], $args['database'], $args['timestamp'], $args['rootpath'])
         ||
         !(isset($args['files']) || isset($args['patches']))
         ||
@@ -46,7 +47,7 @@ try {
         throw new DeployException($usage, 1);
     }
 
-    $patcher = new DatabasePatcher($logger, $args['host'], $args['port'], $args['user'], $args['pass'], $args['database'], $datetime, $args['rootpath']);
+    $patcher = new DatabasePatcher($logger, $args['host'], $args['port'], $args['user'], $args['pass'], $args['charset'], $args['database'], $datetime, $args['rootpath']);
 
     if (isset($args['files'])) {
         $patcher->setUpdateFiles(explode(',', $args['files']));

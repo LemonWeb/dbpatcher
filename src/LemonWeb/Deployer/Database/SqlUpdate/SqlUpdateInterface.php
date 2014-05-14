@@ -64,6 +64,13 @@ interface SqlUpdateInterface
     const TYPE_LARGE = 2;
 
     /**
+     * Instantiate the patch.
+     *
+     * @param array $options
+     */
+    public function __construct(array $options);
+
+    /**
      * If this update should be used or not.
      * This is convenient for creating cleanup-updates (data-destructive) that should be run somewhere in the future.
      *

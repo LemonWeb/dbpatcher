@@ -107,6 +107,13 @@ class Manager implements DatabaseManagerInterface
     protected $database_pass = null;
 
     /**
+     * The charset to use when talking to the database
+     *
+     * @var string
+     */
+    protected $database_charset = null;
+
+    /**
      * Of de database-gegevens gecontroleerd zijn
      *
      * @var boolean
@@ -183,6 +190,7 @@ class Manager implements DatabaseManagerInterface
             'database_user' => null,
             'database_pass' => null,
             'database_dirs' => null,
+            'database_charset' => 'utf8',
             'database_patcher' => "$package_dir/bin/database-patcher.php",
             'control_host' => null
         ), $options);
@@ -194,6 +202,7 @@ class Manager implements DatabaseManagerInterface
         $this->database_name = $options['database_name']; // The name of the database
         $this->database_user = $options['database_user']; // Login name
         $this->database_pass = $options['database_pass']; // Password
+        $this->database_charset = $options['database_charset']; // utf8, latin1, etc.
         $this->database_patcher = $options['database_patcher']; // Path to database-patcher.php
 
         // determine the relative path to the SQL updates dir of the deployer package
@@ -414,7 +423,7 @@ class Manager implements DatabaseManagerInterface
 
                     $patch_classname = Helper::getClassnameFromFilepath($patch_filename);
                     /** @var AbstractSqlUpdate $patch */
-                    $patch = new $patch_classname();
+                    $patch = new $patch_classname(array('charset' => $this->database_charset));
 
                     if ($patch->getType() == SqlUpdateInterface::TYPE_LARGE) {
                         $patches_list .= " \033[01;31m[Large]\033[0m\n";
@@ -434,9 +443,9 @@ class Manager implements DatabaseManagerInterface
                     }
                 } else {
                     if (count($patches_to_apply) > 1) {
-                        $choice = $this->local_shell->inputPrompt('[a]pply, [p]ick, [i]gnore (a/r/p/i) [a]: ', 'a', false, array('a', 'p', 'i'));
+                        $choice = $this->local_shell->inputPrompt('[a]pply, [p]ick, [i]gnore (a/p/i) [a]: ', 'a', false, array('a', 'p', 'i'));
                     } else {
-                        $choice = $this->local_shell->inputPrompt('[a]pply, [i]gnore (a/r/i) [a]: ', 'a', false, array('a', 'i'));
+                        $choice = $this->local_shell->inputPrompt('[a]pply, [i]gnore (a/i) [a]: ', 'a', false, array('a', 'i'));
                     }
                 }
 
@@ -554,7 +563,7 @@ class Manager implements DatabaseManagerInterface
             $classname = Helper::getClassnameFromFilepath($filename);
 
             /** @var SqlUpdateInterface $patch */
-            $patch = new $classname();
+            $patch = new $classname(array('charset' => $this->database_charset));
 
             $patch_dependencies = $patch->getDependencies();
 
@@ -888,6 +897,7 @@ class Manager implements DatabaseManagerInterface
                     " --port={$this->database_port}" .
                     " --user=\"{$this->database_user}\"" .
                     " --pass=\"{$this->database_pass}\"" .
+                    " --charset=\"{$this->database_charset}\"" .
                     " --database=\"{$this->database_name}\"" .
                     " --rootpath=\"{$this->basedir}\"" .
                     " --timestamp=\"" . date(DATE_RSS, $this->current_timestamp) . "\"" .
@@ -937,7 +947,7 @@ class Manager implements DatabaseManagerInterface
         $command = escapeshellarg($command);
 
         $this->remote_shell->exec(
-            "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password -e $command --skip-column-names $database_name",
+            "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password --default-character-set={$this->database_charset} -e $command --skip-column-names $database_name",
             $this->control_host,
             $output,
             $return,
@@ -979,11 +989,11 @@ class Manager implements DatabaseManagerInterface
                 $count_files = count($update_files);
 
                 if (Deploy::UPDATE == $action) {
-                    ksort($update_files, SORT_NUMERIC);
+                    ksort($update_files, SORT_STRING);
 
                     $this->logger->log($count_files . ' SQL update patch' . ($count_files > 1 ? 'es' : '') . ' found:');
                 } elseif (Deploy::ROLLBACK == $action) {
-                    krsort($update_files, SORT_NUMERIC);
+                    krsort($update_files, SORT_STRING);
 
                     $this->logger->log($count_files . ' SQL rollback patch' . ($count_files > 1 ? 'es' : '') . ' found:');
                 }

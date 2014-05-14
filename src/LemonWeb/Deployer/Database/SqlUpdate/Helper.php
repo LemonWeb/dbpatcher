@@ -32,12 +32,17 @@ class Helper
      *
      * @param string $path_prefix
      * @param array $filepaths
+     * @param array $patch_options      Options array that will be passed on to the patches' constructor
      * @throws \LemonWeb\Deployer\Exceptions\DeployException
      * @throws \LemonWeb\Deployer\Database\SqlUpdate\InvalidPatchException
      * @return SqlUpdateInterface[]                [filepath => sql_update_object, ...]
      */
-    public static function checkFiles($path_prefix, $filepaths)
+    public static function checkFiles($path_prefix, $filepaths, array $patch_options = null)
     {
+        if (null == $patch_options) {
+            $patch_options = array();
+        }
+
         $sql_patch_objects = array();
 
         foreach ($filepaths as $filename) {
@@ -57,7 +62,7 @@ class Helper
                 throw new InvalidPatchException("Class $classname not found in $filepath");
             }
 
-            $sql_patch = new $classname();
+            $sql_patch = new $classname($patch_options);
 
             if (!$sql_patch instanceof SqlUpdateInterface) {
                 throw new InvalidPatchException("Class $classname doesn't implement the SQL_update interface");
