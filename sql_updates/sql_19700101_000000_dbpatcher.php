@@ -16,7 +16,7 @@ class sql_19700101_000000_dbpatcher extends AbstractSqlUpdate
                     CREATE TABLE `db_patches` (
                       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                       `patch_name` varchar(400) COLLATE latin1_swedish_ci NOT NULL,
-                      `patch_timestamp` varchar(14) COLLATE ascii_general_ci NOT NULL,
+                      `patch_timestamp` varchar(14) COLLATE latin1_swedish_ci NOT NULL,
                       `down_sql` TEXT COLLATE latin1_swedish_ci NULL,
                       `dependencies` TEXT COLLATE latin1_swedish_ci NULL,
                       `applied_at` datetime NULL,
@@ -32,7 +32,7 @@ class sql_19700101_000000_dbpatcher extends AbstractSqlUpdate
                     CREATE TABLE `db_patches` (
                       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
                       `patch_name` varchar(400) COLLATE utf8_unicode_ci  NOT NULL,
-                      `patch_timestamp` varchar(14) COLLATE ascii_general_ci NOT NULL,
+                      `patch_timestamp` varchar(14) COLLATE utf8_unicode_ci NOT NULL,
                       `down_sql` TEXT COLLATE utf8_unicode_ci NULL,
                       `dependencies` TEXT COLLATE utf8_unicode_ci NULL,
                       `applied_at` datetime NULL,
