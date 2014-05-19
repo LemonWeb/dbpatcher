@@ -946,8 +946,15 @@ class Manager implements DatabaseManagerInterface
         $command = str_replace(array( /*'(', ')',*/ /*'`'*/), array( /*'\(', '\)',*/ /*'\`'*/), $command);
         $command = escapeshellarg($command);
 
+        $hostname = escapeshellarg($this->database_host);
+        $port = escapeshellarg($this->database_port);
+        $username = escapeshellarg($username);
+        $password = escapeshellarg($password);
+        $charset = escapeshellarg($this->database_charset);
+        $database_name = escapeshellarg($database_name);
+
         $this->remote_shell->exec(
-            "mysql -h{$this->database_host} -P{$this->database_port} -u$username -p$password --default-character-set={$this->database_charset} -e $command --skip-column-names $database_name",
+            "mysql -h{$hostname} -P{$port} -u{$username} -p{$password} --default-character-set={$charset} -e {$command} --skip-column-names {$database_name}",
             $this->control_host,
             $output,
             $return,
