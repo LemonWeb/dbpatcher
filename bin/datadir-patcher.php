@@ -3,7 +3,7 @@
 use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Patchers\Helper;
 
-require __DIR__ .'/../../../autoload.php';
+require __DIR__ . '/../../../autoload.php';
 
 
 if ($_SERVER['argc'] <= 2) {

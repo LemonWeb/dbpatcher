@@ -29,8 +29,8 @@ $deploy = new Deploy(array(
 	'database_user' => 'root', // if you omit these you will be asked for them if they are needed
 	'database_pass' => 'p@ssw0rd',
 	'target' => 'prod',
-	'database_patcher' => 'vendor/bugbyte/deployer/bin/database-patcher.php',
-	'datadir_patcher' => 'vendor/bugbyte/deployer/bin/datadir-patcher.php',
+	'database_patcher' => 'vendor/lemonweb/deployer/bin/database-patcher.php',
+	'datadir_patcher' => 'vendor/lemonweb/deployer/bin/datadir-patcher.php',
 
     // APC cache handling (see apc/frontcontroller_example.php for details)
     'apc_deploy_version_template' => 'lib/deployer/apc/deploy_version_template.php',

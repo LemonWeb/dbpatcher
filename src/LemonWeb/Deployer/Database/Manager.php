@@ -390,9 +390,9 @@ class Manager implements DatabaseManagerInterface
                 $this->logger->log('Database patches to revert (' . count($patches_to_revert) . '): ' . PHP_EOL . implode(PHP_EOL, array_keys($patches_to_revert)));
 
                 if (count($patches_to_revert) > 1) {
-                    $choice = $this->local_shell->inputPrompt('Revert ? (y/p/n) [y]: ', 'y', false, array('y', 'p', 'n'));
+                    $choice = $this->local_shell->inputPrompt('Revert ? (Y/p/n): ', 'y', false, array('y', 'p', 'n'));
                 } else {
-                    $choice = $this->local_shell->inputPrompt('Revert ? (y/n) [y]: ', 'y', false, array('y', 'n'));
+                    $choice = $this->local_shell->inputPrompt('Revert ? (Y/n): ', 'y', false, array('y', 'n'));
                 }
 
                 if ('y' == $choice) {
@@ -404,7 +404,7 @@ class Manager implements DatabaseManagerInterface
                     $checked_patches_to_revert = $this->checkRevertDependencies($chosen_patches_to_revert, $dependencies);
 
                     if (count($checked_patches_to_revert) > 0 && count($checked_patches_to_revert) != count($chosen_patches_to_revert)) {
-                        if ('y' == $this->local_shell->inputPrompt('Are you sure ? (y/n) [n]', 'n', false, array('y', 'n'))) {
+                        if ('y' == $this->local_shell->inputPrompt('Are you sure ? (y/N): ', 'n', false, array('y', 'n'))) {
                             $this->patches_to_revert += $checked_patches_to_revert;
                         }
                     } else {
@@ -437,15 +437,15 @@ class Manager implements DatabaseManagerInterface
                 // only offer to register patches as done if the patches table exists
                 if ($this->patches_table_exists) {
                     if (count($patches_to_apply) > 1) {
-                        $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [a]: ', 'a', false, array('a', 'r', 'p', 'i'));
+                        $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (A/r/p/i): ', 'a', false, array('a', 'r', 'p', 'i'));
                     } else {
-                        $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [a]: ', 'a', false, array('a', 'r', 'i'));
+                        $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (A/r/i): ', 'a', false, array('a', 'r', 'i'));
                     }
                 } else {
                     if (count($patches_to_apply) > 1) {
-                        $choice = $this->local_shell->inputPrompt('[a]pply, [p]ick, [i]gnore (a/p/i) [a]: ', 'a', false, array('a', 'p', 'i'));
+                        $choice = $this->local_shell->inputPrompt('[a]pply, [p]ick, [i]gnore (A/p/i): ', 'a', false, array('a', 'p', 'i'));
                     } else {
-                        $choice = $this->local_shell->inputPrompt('[a]pply, [i]gnore (a/i) [a]: ', 'a', false, array('a', 'i'));
+                        $choice = $this->local_shell->inputPrompt('[a]pply, [i]gnore (A/i): ', 'a', false, array('a', 'i'));
                     }
                 }
 
@@ -460,7 +460,7 @@ class Manager implements DatabaseManagerInterface
                     $checked_patches_to_apply = $this->checkDependencies($picked_apply, $performed_patches + $picked_register);
 
                     if (count($checked_patches_to_apply) > 0 && count($checked_patches_to_apply) != count($picked_apply)) {
-                        if ('y' == $this->local_shell->inputPrompt('Are you sure ? (y/n) [n]', 'n', false, array('y', 'n'))) {
+                        if ('y' == $this->local_shell->inputPrompt('Are you sure ? (y/N)', 'n', false, array('y', 'n'))) {
                             $this->patches_to_apply += $picked_apply;
                             $this->patches_to_register_as_done += $picked_register;
                         }
@@ -495,9 +495,9 @@ class Manager implements DatabaseManagerInterface
                 $this->logger->log($patches_list);
 
                 if (count($patches_to_register_as_done) > 1) {
-                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/i) [i]: ', 'i', false, array('a', 'r', 'p', 'i'));
+                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [p]ick, [i]gnore (a/r/p/I): ', 'i', false, array('a', 'r', 'p', 'i'));
                 } else {
-                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/i) [i]: ', 'i', false, array('a', 'r', 'i'));
+                    $choice = $this->local_shell->inputPrompt('[a]pply, [r]egister as done, [i]gnore (a/r/I): ', 'i', false, array('a', 'r', 'i'));
                 }
 
                 if ('a' == $choice) {
@@ -825,7 +825,7 @@ class Manager implements DatabaseManagerInterface
 
         // if the database credentials are known, no need to ask for them again
         if ($database_name === null) {
-            if ($this->local_shell->inputPrompt('Check if database needs updates? (y/n) [n]: ', 'n', false, array('y', 'n')) != 'y') {
+            if ($this->local_shell->inputPrompt('Check if database needs updates? (y/N): ', 'n', false, array('y', 'n')) != 'y') {
                 $database_name = 'skip';
             }
         }
@@ -834,7 +834,7 @@ class Manager implements DatabaseManagerInterface
             if ($this->database_name !== null) {
                 // we're not updating anything yet, so no need to ask questions
                 if (!$pre_check) {
-                    if ($this->local_shell->inputPrompt('Update database ' . $this->database_name . '? (y/n) [n]: ', 'n', false, array('y', 'n')) != 'y') {
+                    if ($this->local_shell->inputPrompt('Update database ' . $this->database_name . '? (y/N): ', 'n', false, array('y', 'n')) != 'y') {
                         $database_name = 'skip';
                     }
                 }

@@ -46,8 +46,19 @@ class LocalShell implements LocalShellInterface
         }
 
         // if possible choices are specified but not met, re-ask the question
-        if (null !== $choices && !in_array($input, $choices)) {
-            return $this->inputPrompt($message, $default, $isPassword, $choices);
+        if (is_array($choices)) {
+            $choice_is_valid = false;
+
+            foreach ($choices as $choice) {
+                if (0 === strcasecmp($choice, $input)) {
+                    $choice_is_valid = true;
+                    break;
+                }
+            }
+
+            if (!$choice_is_valid) {
+                return $this->inputPrompt($message, $default, $isPassword, $choices);
+            }
         }
 
         return $input;

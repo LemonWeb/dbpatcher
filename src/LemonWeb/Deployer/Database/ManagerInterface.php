@@ -10,7 +10,7 @@ interface ManagerInterface
 {
     public function __construct(LoggerInterface $logger, LocalShellInterface $local_shell, RemoteShellInterface $remote_shell, array $options);
 
-    public function initialize($current_timestamp, $previous_timestamp, $last_timestamp);
+    public function initialize($current_timestamp, $previous_timestamp = null, $last_timestamp = null);
 
     public function check($action);
 
