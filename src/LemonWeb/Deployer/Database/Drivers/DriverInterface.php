@@ -36,7 +36,7 @@ interface DriverInterface
 
     /**
      * @param string $sql
-     * @return mixed
+     * @return mixed|bool
      */
     public function multiQuery($sql);
 

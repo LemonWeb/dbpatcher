@@ -454,7 +454,7 @@ class Manager implements DatabaseManagerInterface
                 } elseif ('r' == $choice) {
                     $this->patches_to_register_as_done += $patches_to_apply;
                 } elseif ('p' == $choice) {
-                    list($picked_apply, $picked_register) = $this->pickPatches($patches_to_apply, array('a', 'r', 'i'));
+                    list($picked_apply, $picked_register) = $this->pickPatches($patches_to_apply, array('a', 'r', 'i'), 'a');
 
                     // if the hand-chosen list introduced dependency problems, prompt the user
                     $checked_patches_to_apply = $this->checkDependencies($picked_apply, $performed_patches + $picked_register);
@@ -505,7 +505,7 @@ class Manager implements DatabaseManagerInterface
                 } elseif ('r' == $choice) {
                     $this->patches_to_register_as_done += $patches_to_register_as_done;
                 } elseif ('p' == $choice) {
-                    list($picked_apply, $picked_register) = $this->pickPatches($patches_to_register_as_done, array('a', 'r', 'i'));
+                    list($picked_apply, $picked_register) = $this->pickPatches($patches_to_register_as_done, array('a', 'r', 'i'), 'i');
                     $this->patches_to_apply += $picked_apply;
                     $this->patches_to_register_as_done += $picked_register;
                 }
@@ -524,21 +524,35 @@ class Manager implements DatabaseManagerInterface
      *
      * @param array $patches
      * @param array $choices
+     * @param string $default
      * @return array
      */
-    protected function pickPatches(array $patches, array $choices)
+    protected function pickPatches(array $patches, array $choices, $default = '')
     {
         // initialize the return array
         $picks = array();
+        $choices_display = array();
 
-        foreach ($choices as $key => $choice) {
-            $picks[$key] = array();
+        foreach ($choices as $index => $choice) {
+            $picks[$index] = array();
+
+            $choices_display[$index] = $choice == $default ? strtoupper($choice) : $choice;
         }
 
+        $choices_display = implode('/', $choices_display);
+
         // prompt the user to choose for each patch
-        foreach ($patches as $key => $value) {
-            $choice = $this->local_shell->inputPrompt("$key (". implode('/', $choices) ."): ", '', false, $choices);
-            $picks[array_search($choice, $choices)][$key] = $value;
+        foreach ($patches as $patch_name => $value) {
+            $patch_timestamp = Helper::convertFilenameToDateTime($patch_name);
+
+            if ('19700101000000' == $patch_timestamp) {
+                // always apply the dbpatcher patch
+                $picks[array_search('a', $choices)][$patch_name] = $value;
+            } else {
+                $choice = $this->local_shell->inputPrompt("$patch_name (". $choices_display ."): ", $default, false, $choices);
+                $picks[array_search($choice, $choices)][$patch_name] = $value;
+            }
+
         }
 
         return $picks;
@@ -738,8 +752,10 @@ class Manager implements DatabaseManagerInterface
      *
      * @param string $remote_dir
      * @param string $target_dir
+     *
+     * @throws DatabaseException
      */
-    public function update($remote_dir, $target_dir)
+    public function update($remote_dir = null, $target_dir = null)
     {
         $this->logger->log('updateDatabase', LOG_DEBUG);
 
@@ -747,14 +763,8 @@ class Manager implements DatabaseManagerInterface
             return;
         }
 
-        if (!empty($this->patches_to_register_as_done)) {
-            $this->sendToDatabase(
-                "cd {$remote_dir}/{$target_dir};" .
-                " php {$this->database_patcher}" .
-                ' --action="update"' .
-                ' --files="' . implode(',', $this->patches_to_register_as_done) . '"' .
-                ' --register-only=1'
-            );
+        if (null === $remote_dir) {
+            $remote_dir = $this->basedir;
         }
 
         if (!empty($this->patches_to_apply)) {

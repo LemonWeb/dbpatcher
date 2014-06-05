@@ -71,7 +71,7 @@ try {
     }
 
     exit(0);
-} catch (Exception $e) {
-    $logger->log($e->getMessage());
-    exit(max($e->getCode(), 1));
+} catch (Exception $exception) {
+    $logger->log($exception->getMessage());
+    exit(max($exception->getCode(), 1));
 }

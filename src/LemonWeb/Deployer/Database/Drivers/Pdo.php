@@ -110,8 +110,11 @@ class Pdo extends BaseDriver
 
         $this->logger->log($query, LOG_DEBUG);
 
-        if (!($result = $this->connection->query($query))) {
-            $this->error($query, $this->connection->errorInfo());
+        $result = $this->connection->query($query);
+
+        if (false === $result) {
+            $errorInfo = $this->connection->errorInfo();
+            $this->error($query, "[{$errorInfo[1]}] {$errorInfo[2]}");
         } else {
             $this->affected_rows = $result->rowCount();
         }
@@ -123,7 +126,7 @@ class Pdo extends BaseDriver
      * Executes multiple SQL queries
      *
      * @param string $queries
-     * @return \PDOStatement
+     * @return \PDOStatement|bool
      */
     public function multiQuery($queries)
     {

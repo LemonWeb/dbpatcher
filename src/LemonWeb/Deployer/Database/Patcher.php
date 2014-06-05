@@ -138,7 +138,7 @@ class Patcher
 
             // Register the patch in the db_patches table (except for the db_patches table patch itself, that wouldn't be possible yet).
             // Add the revert (down) code to the record so the update can be reverted when the file doesn't exist, which can happen when code is rolled back.
-            // Also add the patch' dependencies list so it won't be reverted before depending patches are reverted.
+            // Also add the patch' dependencies list so depending patches won't be reverted before it is reverted first.
             if ('19700101000000' != $patch_timestamp) {
                 $this->driver->query("
                     INSERT INTO db_patches (
@@ -160,10 +160,10 @@ class Patcher
             if (!$register_only) {
                 $this->driver->startTransaction();
 
-                $this->driver->multiQuery($sql_patch_object->up());
+                $result = $this->driver->multiQuery($sql_patch_object->up());
 
-                if ($mError = $this->driver->getLastError()) {
-                    throw new DatabaseException($mError, 1);
+                if (false === $result) {
+                    throw new DatabaseException('Error applying patch '. $patch_name .': '. $this->driver->getLastError(), 1);
                 }
 
                 $this->driver->doCommit();
@@ -177,10 +177,10 @@ class Patcher
                     WHERE patch_name = '" . $this->driver->escape($patch_name) . "';
                 ");
 
-                if (!$register_only) {
-                    $this->logger->log("Patch '$filename' succeeded.");
-                } else {
+                if ($register_only) {
                     $this->logger->log("Patch '$filename' registered.");
+                } else {
+                    $this->logger->log("Patch '$filename' succeeded.");
                 }
             } else {
                 // the db_patches patch has no record set, insert it now
