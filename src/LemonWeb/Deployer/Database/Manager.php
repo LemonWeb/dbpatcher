@@ -426,7 +426,7 @@ class Manager implements DatabaseManagerInterface
                     $patch = new $patch_classname(array('charset' => $this->database_charset));
 
                     if ($patch->getType() == SqlUpdateInterface::TYPE_LARGE) {
-                        $patches_list .= " \033[01;31m[Large]\033[0m\n";
+                        $patches_list .= " \033[01;31m[Large]\033[0m";
                     }
 
                     $patches_list .= PHP_EOL;
@@ -486,7 +486,7 @@ class Manager implements DatabaseManagerInterface
                     $patch = new $patch_classname();
 
                     if ($patch->getType() == SqlUpdateInterface::TYPE_LARGE) {
-                        $patches_list .= " \033[01;31m[Large]\033[0m\n";
+                        $patches_list .= " \033[01;31m[Large]\033[0m";
                     }
 
                     $patches_list .= PHP_EOL;
