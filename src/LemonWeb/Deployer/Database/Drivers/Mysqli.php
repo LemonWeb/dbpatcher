@@ -190,4 +190,17 @@ class Mysqli extends BaseDriver
     {
         return $this->connection->insert_id;
     }
+
+    /**
+     * @param \mysqli_stmt $result
+     */
+    public function closeResult(&$result)
+    {
+        if ($result instanceof \mysqli_stmt) {
+            $result->close();
+            unset($result);
+        }
+    }
+
+
 }

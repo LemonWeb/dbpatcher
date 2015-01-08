@@ -101,7 +101,7 @@ class Pdo extends BaseDriver
      * Executes an SQL query
      *
      * @param string $query
-     * @return \PDOStatement
+     * @return \PDOStatement|false
      */
     public function query($query)
     {
@@ -212,4 +212,17 @@ class Pdo extends BaseDriver
     {
         return $this->connection->lastInsertId();
     }
+
+    /**
+     * @param \PDOStatement $result
+     */
+    public function closeResult(&$result)
+    {
+        if ($result instanceof \PDOStatement) {
+            $result->closeCursor();
+            unset($result);
+        }
+    }
+
+
 }

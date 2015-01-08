@@ -164,6 +164,8 @@ class Patcher
 
                 if (false === $result) {
                     throw new DatabaseException('Error applying patch '. $patch_name .': '. $this->driver->getLastError(), 1);
+                } else {
+                    $this->driver->closeResult($result);
                 }
 
                 $this->driver->doCommit();

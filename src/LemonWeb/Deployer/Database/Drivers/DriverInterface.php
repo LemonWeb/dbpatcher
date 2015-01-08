@@ -103,4 +103,9 @@ interface DriverInterface
      * @return integer
      */
     public function lastInsertId();
+
+    /**
+     * @param $result
+     */
+    public function closeResult(&$result);
 }
