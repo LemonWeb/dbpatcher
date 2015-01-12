@@ -767,6 +767,16 @@ class Manager implements DatabaseManagerInterface
             $remote_dir = $this->basedir;
         }
 
+        if (!empty($this->patches_to_register_as_done)) {
+            $this->sendToDatabase(
+                "cd {$remote_dir}/{$target_dir};" .
+                " php {$this->database_patcher}" .
+                ' --action="update"' .
+                ' --files="' . implode(',', $this->patches_to_register_as_done) . '"' .
+                ' --register-only=true'
+            );
+        }
+
         if (!empty($this->patches_to_apply)) {
             $this->sendToDatabase(
                 "cd {$remote_dir}/{$target_dir};" .
