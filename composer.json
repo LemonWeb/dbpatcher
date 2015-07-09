@@ -1,5 +1,5 @@
 {
-    "name": "lemonweb/deployer",
+    "name": "lemonweb/dbpatcher",
     "authors": [
         {
             "name": "Bert-Jan de Lange",
@@ -9,7 +9,9 @@
     "description": "A website deployment tool with database versioning",
     "license": "MIT",
     "require": {
-        "php": ">=5.3.3"
+        "php": ">=5.3.3",
+        "symfony/console": "^2.7",
+        "symfony/process": "^2.7"
     },
     "autoload": {
         "psr-0": {
