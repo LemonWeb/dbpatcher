@@ -4,13 +4,13 @@ The easiest way is to use Composer:
 
     {
         "require": {
-            "lemonweb/deployer": "2.*@dev"
+            "lemonweb/dbpatcher": "2.*@dev"
         }
     }
 
 USAGE
 
-See [example.php](https://github.com/lemonweb/deployer/blob/master/example.php) for a simple setup.
+See [example.php](https://github.com/lemonweb/dbpatcher/blob/2.x/example.php) for a simple setup.
 
 TODO
 
