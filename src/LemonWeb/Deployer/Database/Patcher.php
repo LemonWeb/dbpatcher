@@ -76,7 +76,7 @@ class Patcher
         $this->rootpath = $rootpath;
 
         // find a usable driver
-        foreach (array('Pdo', 'Mysqli') as $drivername) {
+        foreach (array('Mysqli', 'Pdo') as $drivername) {
             /** @var DriverInterface $classname */
             $classname = 'LemonWeb\Deployer\Database\Drivers\\' . $drivername;
 
@@ -164,8 +164,6 @@ class Patcher
 
                 if (false === $result) {
                     throw new DatabaseException('Error applying patch '. $patch_name .': '. $this->driver->getLastError(), 1);
-                } else {
-                    $this->driver->closeResult($result);
                 }
 
                 $this->driver->doCommit();

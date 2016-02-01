@@ -1,4 +1,4 @@
-<?php /* Copyright � LemonWeb B.V. All rights reserved. $$Revision:$ */
+<?php
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
@@ -126,11 +126,11 @@ class Pdo extends BaseDriver
      * Executes multiple SQL queries
      *
      * @param string $queries
-     * @return \PDOStatement|bool
+     * @return bool
      */
     public function multiQuery($queries)
     {
-        return $this->query($queries);
+        throw new \LogicException('PDO does not properly support running multiple queries at once. Use MySQLi instead.');
     }
 
     public function escape($var)

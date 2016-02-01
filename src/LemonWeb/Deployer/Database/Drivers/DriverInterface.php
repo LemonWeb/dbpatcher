@@ -1,4 +1,4 @@
-<?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
+<?php
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
@@ -36,7 +36,7 @@ interface DriverInterface
 
     /**
      * @param string $sql
-     * @return mixed|bool
+     * @return bool
      */
     public function multiQuery($sql);
 

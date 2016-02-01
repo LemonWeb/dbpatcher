@@ -1,4 +1,4 @@
-<?php /* Copyright � LemonWeb B.V. All rights reserved. $$Revision:$ */
+<?php
 
 namespace LemonWeb\Deployer\Database\Drivers;
 
@@ -85,7 +85,7 @@ class Mysqli extends BaseDriver
     {
         $this->last_error = null;
 
-        if (!($result = $this->connection->query($query))) {
+        if (false === $result = $this->connection->query($query)) {
             $this->error($query, $this->connection->error);
         }
 
@@ -96,23 +96,31 @@ class Mysqli extends BaseDriver
      * Executes multiple SQL queries
      *
      * @param string $queries
-     * @return \PDOStatement
+     * @return bool true if all queries succeeded without error
      */
     public function multiQuery($queries)
     {
         $this->last_error = null;
+        $success = true;
+        $queryNumber = 0;
 
-        if (!($result = $this->connection->multi_query($queries))) {
-            $this->error($queries, $this->connection->error);
+        $result = $this->connection->multi_query($queries);
+
+        if (false === $result) {
+            $this->error('Query #'. $queryNumber .' in "'. $queries .'"', $this->connection->error);
+            $success = false;
         }
 
-        if ($this->connection->more_results()) {
-            while ($next_result = $this->connection->next_result()) {
-                $result = $this->connection->store_result();
+        while ($this->connection->more_results()) {
+            ++$queryNumber;
+
+            if (false === $this->connection->next_result()) {
+                $this->error('Query #'. $queryNumber .' in "'. $queries .'"', $this->connection->error);
+                $success = false;
             }
         }
 
-        return $result;
+        return $success;
     }
 
     public function escape($var)
