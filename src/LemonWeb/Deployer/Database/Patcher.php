@@ -76,7 +76,7 @@ class Patcher
         $this->rootpath = $rootpath;
 
         // find a usable driver
-        foreach (array('Mysqli', 'Pdo') as $drivername) {
+        foreach (array('Mysqli') as $drivername) {
             /** @var DriverInterface $classname */
             $classname = 'LemonWeb\Deployer\Database\Drivers\\' . $drivername;
 
