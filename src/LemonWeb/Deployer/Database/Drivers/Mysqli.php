@@ -104,20 +104,21 @@ class Mysqli extends BaseDriver
         $success = true;
         $queryNumber = 0;
 
-        $result = $this->connection->multi_query($queries);
+        if ($multiQuery = $this->connection->multi_query($queries)) {
+            do {
+                if ($result = $this->connection->use_result()) {
+                    while ($result->fetch_row());
+                    $result->close();
+                }
+            } while ($nextResult = $this->connection->next_result());
 
-        if (false === $result) {
-            $this->error('Query #'. $queryNumber .' in "'. $queries .'"', $this->connection->error);
-            $success = false;
-        }
-
-        while ($this->connection->more_results()) {
-            ++$queryNumber;
-
-            if (false === $this->connection->next_result()) {
-                $this->error('Query #'. $queryNumber .' in "'. $queries .'"', $this->connection->error);
-                $success = false;
+            if ($error = $this->connection->error) {
+                $this->error('Query #'. $queryNumber .' in "'. $queries .'"', $error);
+                return false;
             }
+        } else {
+            $this->error('Query #'. $queryNumber .' in "'. $queries .'"', $this->connection->error);
+            return false;
         }
 
         return $success;

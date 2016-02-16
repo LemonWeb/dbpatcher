@@ -237,10 +237,10 @@ class Patcher
                 // revert the patch
                 $this->driver->startTransaction();
 
-                $this->driver->query($patch_info['down_sql']);
+                $this->driver->multiQuery($patch_info['down_sql']);
 
-                if ($error = $this->driver->getLastError()) {
-                    throw new DatabaseException($error, 1);
+                if (false === $result) {
+                    throw new DatabaseException('Error reverting patch '. $patch_name .': '. $this->driver->getLastError(), 1);
                 }
 
                 $this->driver->doCommit();
