@@ -110,7 +110,7 @@ class Mysqli extends BaseDriver
                     while ($result->fetch_row());
                     $result->close();
                 }
-            } while ($nextResult = $this->connection->next_result());
+            } while ($this->connection->more_results() && ($nextResult = $this->connection->next_result()));
 
             if ($error = $this->connection->error) {
                 $this->error('Query #'. $queryNumber .' in "'. $queries .'"', $error);
