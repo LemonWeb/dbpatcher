@@ -574,10 +574,8 @@ class Manager implements DatabaseManagerInterface
         $checked_patches = array();
 
         foreach ($patches as $patch_name => $filename) {
-            $classname = Helper::getClassnameFromFilepath($filename);
-
             /** @var SqlUpdateInterface $patch */
-            $patch = new $classname(array('charset' => $this->database_charset));
+            $patch = new $patch_name(array('charset' => $this->database_charset));
 
             $patch_dependencies = $patch->getDependencies();
 
@@ -590,7 +588,7 @@ class Manager implements DatabaseManagerInterface
 
             foreach ($patch_dependencies as $dependency_classname) {
                 if (!isset($checked_patches[$dependency_classname]) && !isset($performed_patches[$dependency_classname])) {
-                    $this->logger->log("Can't apply patch '$classname', missing dependency '$dependency_classname'.");
+                    $this->logger->log("Can't apply patch '$patch_name', missing dependency '$dependency_classname'.");
                     $allow_patch = false;
                     continue(2);
                 }
