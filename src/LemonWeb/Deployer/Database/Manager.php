@@ -588,6 +588,15 @@ class Manager implements DatabaseManagerInterface
 
             foreach ($patch_dependencies as $dependency_classname) {
                 if (!isset($checked_patches[$dependency_classname]) && !isset($performed_patches[$dependency_classname])) {
+                    // if this patch has a dependency that's available in this patch set but further down the list, move it down beyond it's dependency
+                    if (isset($patches[$dependency_classname])) {
+                        unset($patches[$patch_name]);
+                        $this->array_splice_assoc($patches, $dependency_classname, 0, [$patch_name => $filename]);
+
+                        // restart the whole process
+                        return $this->checkDependencies($patches, $performed_patches);
+                    }
+
                     $this->logger->log("Can't apply patch '$patch_name', missing dependency '$dependency_classname'.");
                     $allow_patch = false;
                     continue(2);
@@ -600,6 +609,34 @@ class Manager implements DatabaseManagerInterface
         }
 
         return $checked_patches;
+    }
+
+    /**
+     * array_splice for associatieve arrays, with an off-by-one fix.
+     *
+     * http://php.net/manual/en/function.array-splice.php#111204
+     *
+     * @param array $input
+     * @param string|int $offset
+     * @param string|int $length
+     * @param array $replacement
+     */
+    private function array_splice_assoc(&$input, $offset, $length, $replacement)
+    {
+        $replacement = (array)$replacement;
+        $key_indices = array_flip(array_keys($input));
+
+        if (isset($input[$offset]) && is_string($offset)) {
+            $offset = $key_indices[$offset];
+        }
+
+        if (isset($input[$length]) && is_string($length)) {
+            $length = $key_indices[$length] - $offset;
+        }
+
+        $startarray = array_slice($input, 0, $offset + 1, true);
+        $finisharray = array_slice($input, $offset + 1, null, true);
+        $input = $startarray + $replacement + $finisharray;
     }
 
     /**
