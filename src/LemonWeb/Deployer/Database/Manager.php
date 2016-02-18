@@ -561,8 +561,8 @@ class Manager implements DatabaseManagerInterface
     /**
      * Removes patches from the array that cannot be performed because of missing dependencies.
      *
-     * @param array $patches { timestamp: filename, ... }
-     * @param array $performed_patches { timestamp: applied_at, ... }
+     * @param array $patches { class_name: filepath, ... }
+     * @param array $performed_patches { class_name: applied_at, ... }
      * @return array
      */
     protected function checkDependencies(array $patches, array $performed_patches)
@@ -588,10 +588,8 @@ class Manager implements DatabaseManagerInterface
 
             $allow_patch = true;
 
-            $available_dependencies = array_keys($checked_patches + $performed_patches);
-
             foreach ($patch_dependencies as $dependency_classname) {
-                if (!in_array($dependency_classname, $available_dependencies)) {
+                if (!isset($checked_patches[$dependency_classname]) && !isset($performed_patches[$dependency_classname])) {
                     $this->logger->log("Can't apply patch '$classname', missing dependency '$dependency_classname'.");
                     $allow_patch = false;
                     continue(2);
