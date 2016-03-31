@@ -2,17 +2,17 @@
 
 namespace LemonWeb\Deployer\Database;
 
+use LemonWeb\Deployer\Database\ManagerInterface as DatabaseManagerInterface;
 use LemonWeb\Deployer\Database\SqlUpdate\AbstractSqlUpdate;
 use LemonWeb\Deployer\Database\SqlUpdate\FilterIterator;
 use LemonWeb\Deployer\Database\SqlUpdate\Helper;
+use LemonWeb\Deployer\Database\SqlUpdate\SqlUpdateInterface;
 use LemonWeb\Deployer\Deploy;
-use LemonWeb\Deployer\Exceptions\DeployException;
 use LemonWeb\Deployer\Exceptions\DatabaseException;
-use LemonWeb\Deployer\Database\ManagerInterface as DatabaseManagerInterface;
+use LemonWeb\Deployer\Exceptions\DeployException;
+use LemonWeb\Deployer\Logger\LoggerInterface;
 use LemonWeb\Deployer\Shell\LocalShellInterface;
 use LemonWeb\Deployer\Shell\RemoteShellInterface;
-use LemonWeb\Deployer\Database\SqlUpdate\SqlUpdateInterface;
-use LemonWeb\Deployer\Logger\LoggerInterface;
 
 class Manager implements DatabaseManagerInterface
 {
@@ -810,21 +810,21 @@ class Manager implements DatabaseManagerInterface
             );
         }
 
-        if (!empty($this->patches_to_apply)) {
-            $this->sendToDatabase(
-                "cd {$remote_dir}/{$target_dir};" .
-                " php {$this->database_patcher}" .
-                    ' --action="update"' .
-                    ' --files="' . implode(',', $this->patches_to_apply) . '"'
-            );
-        }
-
         if (!empty($this->patches_to_revert)) {
             $this->sendToDatabase(
                 "cd {$remote_dir}/{$target_dir};" .
                 " php {$this->database_patcher}" .
                     ' --action="rollback"' .
                     ' --patches="' . implode(',', array_keys($this->patches_to_revert)) . '"'
+            );
+        }
+
+        if (!empty($this->patches_to_apply)) {
+            $this->sendToDatabase(
+                "cd {$remote_dir}/{$target_dir};" .
+                " php {$this->database_patcher}" .
+                    ' --action="update"' .
+                    ' --files="' . implode(',', $this->patches_to_apply) . '"'
             );
         }
     }
