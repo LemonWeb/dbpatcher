@@ -1,4 +1,4 @@
-<?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
+<?php
 
 namespace LemonWeb\Deployer\Patchers;
 
