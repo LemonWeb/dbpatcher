@@ -1,4 +1,4 @@
-<?php /* Copyright © LemonWeb B.V. All rights reserved. $$Revision:$ */
+<?php /* Copyright ï¿½ LemonWeb B.V. All rights reserved. $$Revision:$ */
 
 namespace LemonWeb\Deployer\Database\SqlUpdate;
 
@@ -27,7 +27,7 @@ abstract class AbstractSqlUpdate implements SqlUpdateInterface
     /**
      * {@inheritdoc}
      */
-    final public function __construct(array $options)
+    public function __construct(array $options)
     {
         $this->options = array_merge($options, array(
             'charset' => 'utf8',
