@@ -56,6 +56,11 @@ class Patcher
     protected $driver = null;
 
     /**
+     * @var array
+     */
+    private $patchOptions;
+
+    /**
      * @param \LemonWeb\Deployer\Logger\LoggerInterface $logger
      * @param string $hostname
      * @param int $port
@@ -65,15 +70,18 @@ class Patcher
      * @param string $database The name of the database
      * @param string $timestamp The current timestamp (to prevent issues with date-differences between the executing server and the database server)
      * @param string $rootpath The root path of the project
+     * @param array  $options
+     *
      * @throws \LemonWeb\Deployer\Exceptions\DeployException
      */
-    public function __construct(LoggerInterface $logger, $hostname, $port, $username, $password, $charset, $database, $timestamp, $rootpath)
+    public function __construct(LoggerInterface $logger, $hostname, $port, $username, $password, $charset, $database, $timestamp, $rootpath, $options = [])
     {
         $this->logger = $logger;
         $this->charset = $charset;
         $this->database = $database;
         $this->timestamp = $timestamp;
         $this->rootpath = $rootpath;
+        $this->patchOptions = $options;
 
         // find a usable driver
         foreach (array('Mysqli') as $drivername) {
@@ -107,7 +115,7 @@ class Patcher
      */
     public function setUpdateFiles($files)
     {
-        $this->sql_patch_objects = DatabaseHelper::checkFiles($this->rootpath, $files, array('charset' => $this->charset));
+        $this->sql_patch_objects = DatabaseHelper::checkFiles($this->rootpath, $files, $this->patchOptions);
     }
 
     /**

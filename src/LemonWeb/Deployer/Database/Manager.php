@@ -165,6 +165,11 @@ class Manager implements DatabaseManagerInterface
     protected $patches_to_revert = array();
 
     /**
+     * @var array
+     */
+    private $patchOptions;
+
+    /**
      * Initialization
      *
      * @param LoggerInterface $logger
@@ -192,7 +197,8 @@ class Manager implements DatabaseManagerInterface
             'database_dirs' => null,
             'database_charset' => 'utf8',
             'database_patcher' => "$package_dir/bin/database-patcher.php",
-            'control_host' => null
+            'control_host' => null,
+            'patch_options' => [],
         ), $options);
 
         $this->debug = $options['debug'];
@@ -204,6 +210,8 @@ class Manager implements DatabaseManagerInterface
         $this->database_pass = $options['database_pass']; // Password
         $this->database_charset = $options['database_charset']; // utf8, latin1, etc.
         $this->database_patcher = $options['database_patcher']; // Path to database-patcher.php
+
+        $this->patchOptions = $options['patch_options'];
 
         // determine the relative path to the SQL updates dir of the deployer package
         $this->sql_updates_path = "$package_dir/sql_updates";
@@ -381,7 +389,7 @@ class Manager implements DatabaseManagerInterface
         ksort($patches_to_register_as_done, SORT_STRING);
 
         // check if the files all contain SQL patches and filter out inactive patches
-        $patches_to_apply = array_intersect($patches_to_apply, array_keys(Helper::checkFiles($this->basedir, $patches_to_apply)));
+        $patches_to_apply = array_intersect($patches_to_apply, array_keys(Helper::checkFiles($this->basedir, $patches_to_apply, $this->patchOptions)));
         $patches_to_apply = $this->checkDependencies($patches_to_apply, $performed_patches);
         $patches_to_revert = $this->checkRevertDependencies($patches_to_revert, $dependencies);
 
@@ -423,7 +431,7 @@ class Manager implements DatabaseManagerInterface
 
                     $patch_classname = Helper::getClassnameFromFilepath($patch_filename);
                     /** @var AbstractSqlUpdate $patch */
-                    $patch = new $patch_classname(array('charset' => $this->database_charset));
+                    $patch = new $patch_classname($this->patchOptions);
 
                     if ($patch->getType() == SqlUpdateInterface::TYPE_LARGE) {
                         $patches_list .= " \033[01;31m[Large]\033[0m";
@@ -483,7 +491,7 @@ class Manager implements DatabaseManagerInterface
 
                     $patch_classname = Helper::getClassnameFromFilepath($patch_filename);
                     /** @var AbstractSqlUpdate $patch */
-                    $patch = new $patch_classname();
+                    $patch = new $patch_classname($this->patchOptions);
 
                     if ($patch->getType() == SqlUpdateInterface::TYPE_LARGE) {
                         $patches_list .= " \033[01;31m[Large]\033[0m";
@@ -954,7 +962,8 @@ class Manager implements DatabaseManagerInterface
                     " --database=\"{$this->database_name}\"" .
                     " --rootpath=\"{$this->basedir}\"" .
                     " --timestamp=\"" . date(DATE_RSS, $this->current_timestamp) . "\"" .
-                    ' --debug=' . ((int)$this->debug),
+                    ' --debug=' . ((int)$this->debug).
+                    ' --patch-options='.escapeshellarg(serialize($this->patchOptions)),
             $this->control_host,
             $output,
             $return,

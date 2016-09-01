@@ -34,11 +34,12 @@ try {
         "           --rootpath=\"[ROOT_PATH]\"\n" .
         "           [--register-only=1]\n" .
         "           [--files=\"[sql update filename],[sql update filename]\"]\n" .
-        "           [--patches=\"[timestamp,timestamp]\"]\n";
+        "           [--patches=\"[timestamp,timestamp]\"]\n".
+        "           [--patch-options=\"{options}\"]\n";
 
     // check input
     if (
-        !isset($args['action'], $args['host'], $args['port'], $args['user'], $args['pass'], $args['charset'], $args['database'], $args['timestamp'], $args['rootpath'])
+        !isset($args['action'], $args['host'], $args['port'], $args['user'], $args['pass'], $args['charset'], $args['database'], $args['timestamp'], $args['rootpath'], $args['patch-options'])
         ||
         !(isset($args['files']) || isset($args['patches']))
         ||
@@ -47,7 +48,18 @@ try {
         throw new DeployException($usage, 1);
     }
 
-    $patcher = new DatabasePatcher($logger, $args['host'], $args['port'], $args['user'], $args['pass'], $args['charset'], $args['database'], $datetime, $args['rootpath']);
+    $patcher = new DatabasePatcher(
+        $logger,
+        $args['host'],
+        $args['port'],
+        $args['user'],
+        $args['pass'],
+        $args['charset'],
+        $args['database'],
+        $datetime,
+        $args['rootpath'],
+        unserialize($args['patch-options'])
+    );
 
     if (isset($args['files'])) {
         $patcher->setUpdateFiles(explode(',', $args['files']));
