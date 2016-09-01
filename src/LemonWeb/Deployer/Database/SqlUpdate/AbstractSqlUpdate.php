@@ -29,9 +29,9 @@ abstract class AbstractSqlUpdate implements SqlUpdateInterface
      */
     public function __construct(array $options)
     {
-        $this->options = array_merge($options, array(
+        $this->options = array_merge(array(
             'charset' => 'utf8',
-        ));
+        ), $options);
     }
 
     /**
